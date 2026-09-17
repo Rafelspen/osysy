@@ -1,0 +1,27 @@
+name: Pipeline Tick
+
+# Free-tier substitute for Vercel Cron (which requires a Pro plan for
+# per-minute schedules). Hits /api/pipeline/tick every minute with the
+# shared CRON_SECRET header. GitHub Actions' scheduler is best-effort and
+# can lag a few minutes under load — that's fine here since each tick just
+# picks up where the last one left off.
+#
+# Requires two repo secrets (Settings -> Secrets and variables -> Actions):
+#   APP_URL      e.g. https://your-app.vercel.app
+#   CRON_SECRET  same value as the Vercel env var
+
+on:
+  schedule:
+    - cron: "* * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/pipeline/tick
+        run: |
+          curl -sS -X POST "${{ secrets.APP_URL }}/api/pipeline/tick" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -w "\nHTTP %{http_code}\n" \
+            --fail-with-body
