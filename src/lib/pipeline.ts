@@ -11,6 +11,18 @@ export type StageResult = {
   updates: Partial<Omit<LeadRow, "rowNumber">>;
 };
 
+const DOMAIN_WARNING_PREFIX = "domain mismatch warning:";
+
+// Once a domain-mismatch warning is raised at ENRICHED, keep it visible in
+// last_error through every later stage (even on success) instead of letting
+// each stage's own status overwrite it — it's a standing "double check this
+// address" flag for the lead's lifetime, not a transient error.
+function withCarriedWarning(lead: LeadRow, newMessage: string): string {
+  const carried = lead.lastError.trim().startsWith(DOMAIN_WARNING_PREFIX) ? lead.lastError.trim() : "";
+  if (newMessage && carried) return `${newMessage}; ${carried}`;
+  return newMessage || carried;
+}
+
 function companyNameOrFallback(lead: LeadRow, discovered: string | null): string {
   if (lead.companyName.trim()) return lead.companyName.trim();
   if (discovered) return discovered;
@@ -97,7 +109,7 @@ async function advanceEnriched(lead: LeadRow): Promise<StageResult> {
 async function advanceVerified(lead: LeadRow): Promise<StageResult> {
   const template = await getActiveTemplate();
   if (!template) {
-    return { rowNumber: lead.rowNumber, updates: { lastError: "no active template configured" } };
+    return { rowNumber: lead.rowNumber, updates: { lastError: withCarriedWarning(lead, "no active template configured") } };
   }
 
   const companyName = lead.companyName.trim() || lead.websiteUrl;
@@ -109,7 +121,7 @@ async function advanceVerified(lead: LeadRow): Promise<StageResult> {
     rowNumber: lead.rowNumber,
     updates: {
       stage: "OUTREACH",
-      lastError: warnings.length ? `deliverability warning: ${warnings.join("; ")}` : "",
+      lastError: withCarriedWarning(lead, warnings.length ? `deliverability warning: ${warnings.join("; ")}` : ""),
     },
   };
 }
@@ -117,10 +129,13 @@ async function advanceVerified(lead: LeadRow): Promise<StageResult> {
 async function advanceOutreach(auth: OAuth2Client, lead: LeadRow): Promise<StageResult> {
   const template = await getActiveTemplate();
   if (!template) {
-    return { rowNumber: lead.rowNumber, updates: { lastError: "no active template configured" } };
+    return { rowNumber: lead.rowNumber, updates: { lastError: withCarriedWarning(lead, "no active template configured") } };
   }
   if (!lead.officialEmail.trim()) {
-    return { rowNumber: lead.rowNumber, updates: { stage: "ENRICHED", lastError: "TO address missing, reverted for re-verification" } };
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { stage: "ENRICHED", lastError: withCarriedWarning(lead, "TO address missing, reverted for re-verification") },
+    };
   }
 
   const companyName = lead.companyName.trim() || lead.websiteUrl;
@@ -132,23 +147,32 @@ async function advanceOutreach(auth: OAuth2Client, lead: LeadRow): Promise<Stage
   try {
     if (lead.gmailDraftId.trim()) {
       await updateDraft(auth, lead.gmailDraftId.trim(), fields);
-      return { rowNumber: lead.rowNumber, updates: { stage: "QA", lastError: "" } };
+      return { rowNumber: lead.rowNumber, updates: { stage: "QA", lastError: withCarriedWarning(lead, "") } };
     }
     const draftId = await createDraft(auth, fields);
-    return { rowNumber: lead.rowNumber, updates: { gmailDraftId: draftId, stage: "QA", lastError: "" } };
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { gmailDraftId: draftId, stage: "QA", lastError: withCarriedWarning(lead, "") },
+    };
   } catch (err: any) {
-    return { rowNumber: lead.rowNumber, updates: { lastError: `Gmail draft error: ${errorMessage(err)}` } };
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { lastError: withCarriedWarning(lead, `Gmail draft error: ${errorMessage(err)}`) },
+    };
   }
 }
 
 async function advanceQA(auth: OAuth2Client, lead: LeadRow): Promise<StageResult> {
   if (!lead.gmailDraftId.trim()) {
-    return { rowNumber: lead.rowNumber, updates: { stage: "OUTREACH", lastError: "missing draft id, will recreate" } };
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { stage: "OUTREACH", lastError: withCarriedWarning(lead, "missing draft id, will recreate") },
+    };
   }
 
   const template = await getActiveTemplate();
   if (!template) {
-    return { rowNumber: lead.rowNumber, updates: { lastError: "no active template configured" } };
+    return { rowNumber: lead.rowNumber, updates: { lastError: withCarriedWarning(lead, "no active template configured") } };
   }
 
   const companyName = lead.companyName.trim() || lead.websiteUrl;
@@ -159,21 +183,30 @@ async function advanceQA(auth: OAuth2Client, lead: LeadRow): Promise<StageResult
   try {
     draft = await getDraft(auth, lead.gmailDraftId.trim());
   } catch (err: any) {
-    return { rowNumber: lead.rowNumber, updates: { lastError: `Gmail lookup failed: ${errorMessage(err)}` } };
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { lastError: withCarriedWarning(lead, `Gmail lookup failed: ${errorMessage(err)}`) },
+    };
   }
 
   if (!draft) {
-    return { rowNumber: lead.rowNumber, updates: { stage: "OUTREACH", gmailDraftId: "", lastError: "draft not found in Gmail, will retry" } };
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { stage: "OUTREACH", gmailDraftId: "", lastError: withCarriedWarning(lead, "draft not found in Gmail, will retry") },
+    };
   }
 
   const toMatches = draft.to.toLowerCase().includes(lead.officialEmail.trim().toLowerCase());
   const subjectMatches = draft.subject.trim() === subject.trim();
 
   if (toMatches && subjectMatches) {
-    return { rowNumber: lead.rowNumber, updates: { stage: "DRAFTED", lastError: "" } };
+    return { rowNumber: lead.rowNumber, updates: { stage: "DRAFTED", lastError: withCarriedWarning(lead, "") } };
   }
 
-  return { rowNumber: lead.rowNumber, updates: { stage: "OUTREACH", lastError: "draft mismatch (To/Subject), will retry" } };
+  return {
+    rowNumber: lead.rowNumber,
+    updates: { stage: "OUTREACH", lastError: withCarriedWarning(lead, "draft mismatch (To/Subject), will retry") },
+  };
 }
 
 export async function advanceLead(auth: OAuth2Client, lead: LeadRow): Promise<StageResult> {
