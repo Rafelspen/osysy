@@ -149,7 +149,7 @@ risk than anything in the email body.
 
 ## 8. Sheet contract
 
-Columns A–J, header row required, exact order:
+Columns A–K, header row required, exact order:
 
 | Col | Field | Filled by |
 |---|---|---|
@@ -162,7 +162,10 @@ Columns A–J, header row required, exact order:
 | G | Email Name for greeting | Pipeline (SOURCED), defaults to Company Name |
 | H | Pipeline Stage | Pipeline — `SOURCED / ENRICHED / VERIFIED / OUTREACH / QA / DRAFTED` |
 | I | gmail_draft_id | Pipeline (OUTREACH) — dedup key, never create a 2nd draft |
-| J | last_error | Pipeline — human-readable reason a lead is stuck |
+| J | last_error | Pipeline — human-readable reason a lead is stuck, or a standing warning (e.g. domain mismatch) that persists once raised |
+| K | mx_status | Pipeline (ENRICHED) — `valid` / `no_mx` / `unknown`, checked once via DNS MX (falling back to A/AAAA per RFC 5321); `no_mx` blocks progression since it's undeliverable, `unknown` (DNS hiccup) does not |
+
+If you connected your Sheet before this column existed, add the header `mx_status` to K1 yourself — the pipeline writes to K on the next ENRICHED lead regardless, but the column won't have a label until you add it.
 
 Adding a lead via `/add-lead` writes A + C and sets H = `SOURCED`; everything else starts
 blank and is filled by the pipeline.

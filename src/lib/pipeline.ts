@@ -1,6 +1,6 @@
 import { OAuth2Client } from "google-auth-library";
 import { LeadRow } from "./sheets";
-import { discoverEmails, isEmailUsableForDomain, isPlausibleEmail } from "./email-discovery";
+import { discoverEmails, isEmailUsableForDomain, isPlausibleEmail, checkMxStatus } from "./email-discovery";
 import { getActiveTemplate, renderTemplate } from "./templates";
 import { checkSpamSignals } from "./spam-check";
 import { createDraft, updateDraft, getDraft } from "./gmail";
@@ -77,33 +77,41 @@ async function advanceSourced(lead: LeadRow): Promise<StageResult> {
 async function advanceEnriched(lead: LeadRow): Promise<StageResult> {
   const candidates = [lead.officialEmail, lead.secondaryEmail, lead.anotherEmail].filter((e) => e.trim());
 
-  // Prefer an email whose domain matches the website — no warning needed.
+  // Prefer an email whose domain matches the website; otherwise fall back to
+  // any plausibly real address found on the site (see the domain-mismatch
+  // warning below — it's a judgment call a human can still verify).
   const domainMatch = candidates.find((e) => isEmailUsableForDomain(e, lead.websiteUrl));
-  if (domainMatch) {
-    const updates: StageResult["updates"] = { stage: "VERIFIED", lastError: "" };
-    if (domainMatch !== lead.officialEmail) updates.officialEmail = domainMatch;
-    return { rowNumber: lead.rowNumber, updates };
-  }
+  const looseMatch = domainMatch ? undefined : candidates.find((e) => isPlausibleEmail(e));
+  const chosen = domainMatch ?? looseMatch;
 
-  // Nothing matched the website's domain, but a plausibly real address was
-  // still found on the site (not a placeholder/malformed string) — let it
-  // through as a warning rather than getting stuck, since every draft is
-  // reviewed by hand before it's ever sent. Covers legitimate cases like a
-  // rebrand using a different domain for email than the website.
-  const looseMatch = candidates.find((e) => isPlausibleEmail(e));
-  if (looseMatch) {
-    const updates: StageResult["updates"] = {
-      stage: "VERIFIED",
-      lastError: `domain mismatch warning: ${looseMatch} does not match website domain — verify before sending`,
+  if (!chosen) {
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { lastError: "no usable TO address (invalid format or placeholder)" },
     };
-    if (looseMatch !== lead.officialEmail) updates.officialEmail = looseMatch;
+  }
+
+  const mxStatus = await checkMxStatus(chosen);
+
+  if (mxStatus === "no_mx") {
+    // Unlike a domain mismatch, this is a hard technical fact, not a
+    // judgment call — the domain cannot receive mail at all. Stay at
+    // ENRICHED rather than draft something guaranteed to bounce.
+    const updates: StageResult["updates"] = {
+      lastError: `${chosen} domain has no mail servers configured (no MX/A records) — likely undeliverable`,
+      mxStatus,
+    };
+    if (chosen !== lead.officialEmail) updates.officialEmail = chosen;
     return { rowNumber: lead.rowNumber, updates };
   }
 
-  return {
-    rowNumber: lead.rowNumber,
-    updates: { lastError: "no usable TO address (invalid format or placeholder)" },
+  const updates: StageResult["updates"] = {
+    stage: "VERIFIED",
+    lastError: domainMatch ? "" : `domain mismatch warning: ${chosen} does not match website domain — verify before sending`,
+    mxStatus,
   };
+  if (chosen !== lead.officialEmail) updates.officialEmail = chosen;
+  return { rowNumber: lead.rowNumber, updates };
 }
 
 async function advanceVerified(lead: LeadRow): Promise<StageResult> {

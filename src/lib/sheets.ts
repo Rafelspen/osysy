@@ -16,6 +16,7 @@ export type LeadRow = {
   stage: string;
   gmailDraftId: string;
   lastError: string;
+  mxStatus: string; // "" (not yet checked) | "valid" | "no_mx" | "unknown"
 };
 
 const HEADER = [
@@ -29,13 +30,14 @@ const HEADER = [
   "Pipeline Stage",
   "gmail_draft_id",
   "last_error",
+  "mx_status",
 ];
 
 // Ranges omit a sheet name on purpose: the Sheets Values API defaults to the
 // first visible tab when none is given, so this works regardless of what the
 // user names their tab.
-const DATA_RANGE = "A2:J";
-const FULL_RANGE = "A1:J";
+const DATA_RANGE = "A2:K";
+const FULL_RANGE = "A1:K";
 
 export function extractSheetId(url: string): string {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -94,6 +96,7 @@ export async function readLeadRows(auth: OAuth2Client, sheetId: string): Promise
       stage: row[7] ?? "",
       gmailDraftId: row[8] ?? "",
       lastError: row[9] ?? "",
+      mxStatus: row[10] ?? "",
     }))
     .filter((r) => r.source || r.websiteUrl || r.companyName); // skip fully blank trailing rows
 }
@@ -110,7 +113,7 @@ export async function appendLeadRow(
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
-      values: [[data.source, "", data.websiteUrl, "", "", "", "", "SOURCED", "", ""]],
+      values: [[data.source, "", data.websiteUrl, "", "", "", "", "SOURCED", "", "", ""]],
     },
   });
 }
@@ -134,6 +137,7 @@ export async function updateLeadRow(
     stage: "H",
     gmailDraftId: "I",
     lastError: "J",
+    mxStatus: "K",
   };
 
   const data: sheets_v4.Schema$ValueRange[] = Object.entries(updates)

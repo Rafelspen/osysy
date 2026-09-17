@@ -2,8 +2,11 @@
 // Zero-guessing rule: this module only ever returns emails it actually found
 // in fetched content. It never constructs or infers an address.
 
+import dns from "dns";
+
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_PATHS_TO_TRY = 24;
+const MX_LOOKUP_TIMEOUT_MS = 3000;
 
 const COMMON_PATHS = [
   "/contact",
@@ -225,4 +228,56 @@ export function isEmailUsableForDomain(email: string, websiteUrlRaw: string): bo
   // gmail.com contact address rather than one on their own domain.
   if (KNOWN_WORKSPACE_MX_EXCEPTIONS.includes(emailDomain)) return true;
   return false;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("DNS lookup timed out")), ms)),
+  ]);
+}
+
+async function domainHasMxRecords(domain: string): Promise<"has_mx" | "no_records" | "inconclusive"> {
+  try {
+    const records = await withTimeout(dns.promises.resolveMx(domain), MX_LOOKUP_TIMEOUT_MS);
+    return records.length > 0 ? "has_mx" : "no_records";
+  } catch (err: any) {
+    if (err?.code === "ENOTFOUND" || err?.code === "ENODATA") return "no_records";
+    return "inconclusive"; // timeout, ESERVFAIL, network issue — don't treat as a real signal
+  }
+}
+
+async function domainHasAddressRecord(domain: string): Promise<boolean> {
+  try {
+    const a = await withTimeout(dns.promises.resolve4(domain), MX_LOOKUP_TIMEOUT_MS);
+    if (a.length > 0) return true;
+  } catch {
+    // fall through to IPv6
+  }
+  try {
+    const aaaa = await withTimeout(dns.promises.resolve6(domain), MX_LOOKUP_TIMEOUT_MS);
+    if (aaaa.length > 0) return true;
+  } catch {
+    // no address record either
+  }
+  return false;
+}
+
+export type MxStatus = "valid" | "no_mx" | "unknown";
+
+// Confirms the email's domain can actually receive mail — either it has MX
+// records, or (per RFC 5321 fallback behavior) an A/AAAA record SMTP can
+// route to directly. Never flags "no_mx" on a DNS hiccup: an inconclusive
+// lookup (timeout, resolver error) comes back "unknown" instead, so a
+// transient network blip can never wrongly stall a lead.
+export async function checkMxStatus(email: string): Promise<MxStatus> {
+  const domain = email.split("@")[1];
+  if (!domain) return "unknown";
+
+  const mxResult = await domainHasMxRecords(domain);
+  if (mxResult === "has_mx") return "valid";
+  if (mxResult === "inconclusive") return "unknown";
+
+  const hasFallback = await domainHasAddressRecord(domain);
+  return hasFallback ? "valid" : "no_mx";
 }
