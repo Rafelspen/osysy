@@ -122,7 +122,7 @@ function extractSitemapUrls(xml: string): string[] {
   return matches.map((m) => m.replace(/<\/?loc>/gi, "").trim());
 }
 
-function isPlausibleEmail(email: string): boolean {
+export function isPlausibleEmail(email: string): boolean {
   const [local, domain] = email.split("@");
   if (!local || !domain) return false;
   if (PLACEHOLDER_LOCAL_PARTS.has(local.toLowerCase())) return false;

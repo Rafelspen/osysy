@@ -1,6 +1,6 @@
 import { OAuth2Client } from "google-auth-library";
 import { LeadRow } from "./sheets";
-import { discoverEmails, isEmailUsableForDomain } from "./email-discovery";
+import { discoverEmails, isEmailUsableForDomain, isPlausibleEmail } from "./email-discovery";
 import { getActiveTemplate, renderTemplate } from "./templates";
 import { checkSpamSignals } from "./spam-check";
 import { createDraft, updateDraft, getDraft } from "./gmail";
@@ -64,18 +64,34 @@ async function advanceSourced(lead: LeadRow): Promise<StageResult> {
 
 async function advanceEnriched(lead: LeadRow): Promise<StageResult> {
   const candidates = [lead.officialEmail, lead.secondaryEmail, lead.anotherEmail].filter((e) => e.trim());
-  const usable = candidates.find((e) => isEmailUsableForDomain(e, lead.websiteUrl));
 
-  if (!usable) {
-    return {
-      rowNumber: lead.rowNumber,
-      updates: { lastError: "no usable TO address (invalid format, domain mismatch, or placeholder)" },
-    };
+  // Prefer an email whose domain matches the website — no warning needed.
+  const domainMatch = candidates.find((e) => isEmailUsableForDomain(e, lead.websiteUrl));
+  if (domainMatch) {
+    const updates: StageResult["updates"] = { stage: "VERIFIED", lastError: "" };
+    if (domainMatch !== lead.officialEmail) updates.officialEmail = domainMatch;
+    return { rowNumber: lead.rowNumber, updates };
   }
 
-  const updates: StageResult["updates"] = { stage: "VERIFIED", lastError: "" };
-  if (usable !== lead.officialEmail) updates.officialEmail = usable;
-  return { rowNumber: lead.rowNumber, updates };
+  // Nothing matched the website's domain, but a plausibly real address was
+  // still found on the site (not a placeholder/malformed string) — let it
+  // through as a warning rather than getting stuck, since every draft is
+  // reviewed by hand before it's ever sent. Covers legitimate cases like a
+  // rebrand using a different domain for email than the website.
+  const looseMatch = candidates.find((e) => isPlausibleEmail(e));
+  if (looseMatch) {
+    const updates: StageResult["updates"] = {
+      stage: "VERIFIED",
+      lastError: `domain mismatch warning: ${looseMatch} does not match website domain — verify before sending`,
+    };
+    if (looseMatch !== lead.officialEmail) updates.officialEmail = looseMatch;
+    return { rowNumber: lead.rowNumber, updates };
+  }
+
+  return {
+    rowNumber: lead.rowNumber,
+    updates: { lastError: "no usable TO address (invalid format or placeholder)" },
+  };
 }
 
 async function advanceVerified(lead: LeadRow): Promise<StageResult> {
