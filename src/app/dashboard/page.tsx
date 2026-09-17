@@ -128,7 +128,7 @@ export default function DashboardPage() {
               <th className="px-4 py-2">Company</th>
               <th className="px-4 py-2">Website</th>
               <th className="px-4 py-2">Stage</th>
-              <th className="px-4 py-2">MX</th>
+              <th className="min-w-[110px] px-4 py-2">MX</th>
               <th className="px-4 py-2">Error</th>
             </tr>
           </thead>
@@ -158,9 +158,9 @@ export default function DashboardPage() {
                       {lead.stage || "—"}
                     </span>
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="whitespace-nowrap px-4 py-2">
                     {mx ? (
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${mx.className}`}>{mx.label}</span>
+                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${mx.className}`}>{mx.label}</span>
                     ) : (
                       <span className="text-slate-300">—</span>
                     )}
