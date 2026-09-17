@@ -265,19 +265,51 @@ async function domainHasAddressRecord(domain: string): Promise<boolean> {
 
 export type MxStatus = "valid" | "no_mx" | "unknown";
 
-// Confirms the email's domain can actually receive mail — either it has MX
-// records, or (per RFC 5321 fallback behavior) an A/AAAA record SMTP can
-// route to directly. Never flags "no_mx" on a DNS hiccup: an inconclusive
-// lookup (timeout, resolver error) comes back "unknown" instead, so a
-// transient network blip can never wrongly stall a lead.
-export async function checkMxStatus(email: string): Promise<MxStatus> {
-  const domain = email.split("@")[1];
-  if (!domain) return "unknown";
-
+// Confirms a domain can actually receive mail — either it has MX records, or
+// (per RFC 5321 fallback behavior) an A/AAAA record SMTP can route to
+// directly. Never flags "no_mx" on a DNS hiccup: an inconclusive lookup
+// (timeout, resolver error) comes back "unknown" instead, so a transient
+// network blip can never wrongly stall a lead.
+async function checkDomainMxStatus(domain: string): Promise<MxStatus> {
   const mxResult = await domainHasMxRecords(domain);
   if (mxResult === "has_mx") return "valid";
   if (mxResult === "inconclusive") return "unknown";
 
   const hasFallback = await domainHasAddressRecord(domain);
   return hasFallback ? "valid" : "no_mx";
+}
+
+export async function checkMxStatus(email: string): Promise<MxStatus> {
+  const domain = email.split("@")[1];
+  if (!domain) return "unknown";
+  return checkDomainMxStatus(domain);
+}
+
+export type MxSummary = {
+  byEmail: Record<string, MxStatus>;
+  validCount: number;
+  total: number;
+};
+
+// Checks every candidate address, but only one DNS lookup per unique domain
+// — e.g. support@ and sales@ on the same company domain share one check.
+// Domains are looked up in parallel, so checking all 3 candidate slots costs
+// the same latency as checking one.
+export async function summarizeMxStatus(emails: string[]): Promise<MxSummary> {
+  const unique = Array.from(new Set(emails.map((e) => e.trim()).filter(Boolean)));
+  const domainOf = (email: string) => email.split("@")[1]?.toLowerCase();
+  const uniqueDomains = Array.from(new Set(unique.map(domainOf).filter((d): d is string => !!d)));
+
+  const entries = await Promise.all(uniqueDomains.map(async (d) => [d, await checkDomainMxStatus(d)] as const));
+  const domainStatus = new Map(entries);
+
+  const byEmail: Record<string, MxStatus> = {};
+  let validCount = 0;
+  for (const email of unique) {
+    const domain = domainOf(email);
+    const status = (domain && domainStatus.get(domain)) || "unknown";
+    byEmail[email] = status;
+    if (status === "valid") validCount++;
+  }
+  return { byEmail, validCount, total: unique.length };
 }

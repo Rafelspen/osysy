@@ -21,11 +21,18 @@ const STAGE_COLORS: Record<string, string> = {
   DRAFTED: "bg-green-100 text-green-800",
 };
 
-const MX_STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
-  valid: { label: "Valid", className: "bg-green-100 text-green-800" },
-  no_mx: { label: "No mail server", className: "bg-red-100 text-red-800" },
-  unknown: { label: "Unknown", className: "bg-slate-100 text-slate-500" },
-};
+// mxStatus is stored as "X/Y valid" — X of the Y found addresses (Official/
+// Secondary/Another) have a domain confirmed able to receive mail.
+function mxBadge(mxStatus: string): { label: string; className: string } | null {
+  const match = mxStatus.match(/^(\d+)\/(\d+) valid$/);
+  if (!match) return null;
+  const valid = Number(match[1]);
+  const total = Number(match[2]);
+  if (total === 0) return null;
+  if (valid === total) return { label: mxStatus, className: "bg-green-100 text-green-800" };
+  if (valid === 0) return { label: mxStatus, className: "bg-red-100 text-red-800" };
+  return { label: mxStatus, className: "bg-amber-100 text-amber-800" };
+}
 
 const STAGE_ORDER = ["SOURCED", "ENRICHED", "VERIFIED", "OUTREACH", "QA", "DRAFTED"];
 
@@ -141,7 +148,7 @@ export default function DashboardPage() {
               </tr>
             )}
             {leads.map((lead) => {
-              const mx = MX_STATUS_DISPLAY[lead.mxStatus];
+              const mx = mxBadge(lead.mxStatus);
               return (
                 <tr key={lead.rowNumber} className="border-t border-slate-100">
                   <td className="px-4 py-2 font-medium text-slate-900">{lead.companyName || "—"}</td>

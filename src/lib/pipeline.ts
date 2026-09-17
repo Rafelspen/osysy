@@ -1,6 +1,6 @@
 import { OAuth2Client } from "google-auth-library";
 import { LeadRow } from "./sheets";
-import { discoverEmails, isEmailUsableForDomain, isPlausibleEmail, checkMxStatus } from "./email-discovery";
+import { discoverEmails, isEmailUsableForDomain, isPlausibleEmail, summarizeMxStatus } from "./email-discovery";
 import { getActiveTemplate, renderTemplate } from "./templates";
 import { checkSpamSignals } from "./spam-check";
 import { createDraft, updateDraft, getDraft } from "./gmail";
@@ -91,9 +91,14 @@ async function advanceEnriched(lead: LeadRow): Promise<StageResult> {
     };
   }
 
-  const mxStatus = await checkMxStatus(chosen);
+  // Check every candidate address found (not just the chosen TO), deduped by
+  // domain — gives visibility into all 3 slots (e.g. "2/3 valid") even
+  // though only `chosen` drives what's actually drafted.
+  const mxSummary = await summarizeMxStatus(candidates);
+  const chosenMxStatus = mxSummary.byEmail[chosen] ?? "unknown";
+  const mxStatus = `${mxSummary.validCount}/${mxSummary.total} valid`;
 
-  if (mxStatus === "no_mx") {
+  if (chosenMxStatus === "no_mx") {
     // Unlike a domain mismatch, this is a hard technical fact, not a
     // judgment call — the domain cannot receive mail at all. Stay at
     // ENRICHED rather than draft something guaranteed to bounce.

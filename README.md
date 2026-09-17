@@ -163,7 +163,7 @@ Columns A–K, header row required, exact order:
 | H | Pipeline Stage | Pipeline — `SOURCED / ENRICHED / VERIFIED / OUTREACH / QA / DRAFTED` |
 | I | gmail_draft_id | Pipeline (OUTREACH) — dedup key, never create a 2nd draft |
 | J | last_error | Pipeline — human-readable reason a lead is stuck, or a standing warning (e.g. domain mismatch) that persists once raised |
-| K | mx_status | Pipeline (ENRICHED) — `valid` / `no_mx` / `unknown`, checked once via DNS MX (falling back to A/AAAA per RFC 5321); `no_mx` blocks progression since it's undeliverable, `unknown` (DNS hiccup) does not |
+| K | mx_status | Pipeline (ENRICHED) — `"X/Y valid"`, e.g. `2/3 valid`: of the Y non-empty addresses across D/E/F, X have a domain confirmed able to receive mail (MX, or A/AAAA fallback per RFC 5321), deduped by domain and checked once. The chosen TO address specifically failing (confirmed no mail servers at all) blocks progression; an inconclusive DNS lookup (timeout) never does |
 
 If you connected your Sheet before this column existed, add the header `mx_status` to K1 yourself — the pipeline writes to K on the next ENRICHED lead regardless, but the column won't have a label until you add it.
 
