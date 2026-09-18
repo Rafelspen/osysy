@@ -154,8 +154,12 @@ async function advanceOutreach(auth: OAuth2Client, lead: LeadRow): Promise<Stage
   const companyName = lead.companyName.trim() || lead.websiteUrl;
   const greetingName = lead.greetingName.trim() || companyName;
   const { subject, bodyHtml } = renderTemplate(template, companyName, greetingName);
-  const cc = lead.secondaryEmail.trim() && lead.secondaryEmail.trim() !== lead.officialEmail.trim() ? lead.secondaryEmail.trim() : undefined;
-  const fields = { to: lead.officialEmail.trim(), cc, subject, bodyHtml };
+  const to = lead.officialEmail.trim();
+  const ccList = Array.from(
+    new Set([lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter((e) => e && e.toLowerCase() !== to.toLowerCase()))
+  );
+  const cc = ccList.length ? ccList.join(", ") : undefined;
+  const fields = { to, cc, subject, bodyHtml };
 
   try {
     if (lead.gmailDraftId.trim()) {
@@ -211,8 +215,12 @@ async function advanceQA(auth: OAuth2Client, lead: LeadRow): Promise<StageResult
 
   const toMatches = draft.to.toLowerCase().includes(lead.officialEmail.trim().toLowerCase());
   const subjectMatches = draft.subject.trim() === subject.trim();
+  const expectedCc = [lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter(
+    (e) => e && e.toLowerCase() !== lead.officialEmail.trim().toLowerCase()
+  );
+  const ccMatches = expectedCc.every((e) => draft.cc.toLowerCase().includes(e.toLowerCase()));
 
-  if (toMatches && subjectMatches) {
+  if (toMatches && subjectMatches && ccMatches) {
     return { rowNumber: lead.rowNumber, updates: { stage: "DRAFTED", lastError: withCarriedWarning(lead, "") } };
   }
 
