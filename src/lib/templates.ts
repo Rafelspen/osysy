@@ -10,8 +10,18 @@ export type Template = {
   created_at: string;
 };
 
-export async function getActiveTemplate(): Promise<Template | null> {
-  const rows = await query<Template>("SELECT * FROM templates WHERE is_active = TRUE ORDER BY version DESC LIMIT 1");
+export const TEMPLATE_NAMES = ["first_outreach", "follow_up_1", "follow_up_2", "follow_up_3"] as const;
+export type TemplateName = (typeof TEMPLATE_NAMES)[number];
+
+export function isTemplateName(value: unknown): value is TemplateName {
+  return typeof value === "string" && (TEMPLATE_NAMES as readonly string[]).includes(value);
+}
+
+export async function getActiveTemplate(name: TemplateName = "first_outreach"): Promise<Template | null> {
+  const rows = await query<Template>(
+    "SELECT * FROM templates WHERE is_active = TRUE AND name = $1 ORDER BY version DESC LIMIT 1",
+    [name]
+  );
   return rows[0] ?? null;
 }
 
@@ -20,22 +30,24 @@ export async function listTemplates(): Promise<Template[]> {
 }
 
 export async function createTemplateVersion(input: {
-  name?: string;
-  subject: string;
+  name?: TemplateName;
+  subject: string; // follow-ups reuse the thread's subject, so theirs is stored empty
   body_html: string;
 }): Promise<Template> {
+  const name = input.name ?? "first_outreach";
   const [{ max_version }] = await query<{ max_version: number | null }>(
     "SELECT MAX(version) as max_version FROM templates"
   );
   const nextVersion = (max_version ?? 0) + 1;
 
-  await query("UPDATE templates SET is_active = FALSE WHERE is_active = TRUE");
+  // Only this template's previous version is deactivated — the others stay active.
+  await query("UPDATE templates SET is_active = FALSE WHERE is_active = TRUE AND name = $1", [name]);
 
   const rows = await query<Template>(
     `INSERT INTO templates (name, subject, body_html, is_active, version)
      VALUES ($1, $2, $3, TRUE, $4)
      RETURNING *`,
-    [input.name ?? "first_outreach", input.subject, input.body_html, nextVersion]
+    [name, input.subject, input.body_html, nextVersion]
   );
   return rows[0];
 }

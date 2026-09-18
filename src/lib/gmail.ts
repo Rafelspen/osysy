@@ -6,6 +6,12 @@ export type DraftFields = {
   cc?: string;
   subject: string;
   bodyHtml: string; // template body, e.g. "Dear team,<br><br>...<br><br>Best,<br>..."
+  // Set only for follow-ups. Gmail attaches a draft to an existing thread only
+  // when threadId is given, the subject matches, and In-Reply-To/References
+  // carry the Message-ID of the message being replied to.
+  threadId?: string;
+  inReplyTo?: string;
+  references?: string;
 };
 
 function htmlToPlainText(html: string): string {
@@ -39,6 +45,8 @@ function buildRawMessage(fields: DraftFields): string {
     `To: ${fields.to}`,
     fields.cc ? `Cc: ${fields.cc}` : null,
     `Subject: ${encodeHeaderValue(fields.subject)}`,
+    fields.inReplyTo ? `In-Reply-To: ${fields.inReplyTo}` : null,
+    fields.references ? `References: ${fields.references}` : null,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
   ].filter(Boolean);
@@ -72,27 +80,73 @@ function gmailClient(auth: OAuth2Client) {
   return google.gmail({ version: "v1", auth });
 }
 
-export async function createDraft(auth: OAuth2Client, fields: DraftFields): Promise<string> {
+export async function createDraft(
+  auth: OAuth2Client,
+  fields: DraftFields
+): Promise<{ id: string; threadId: string }> {
   const api = gmailClient(auth);
   const res = await api.users.drafts.create({
     userId: "me",
-    requestBody: { message: { raw: buildRawMessage(fields) } },
+    requestBody: { message: { raw: buildRawMessage(fields), threadId: fields.threadId } },
   });
   if (!res.data.id) throw new Error("Gmail did not return a draft id");
-  return res.data.id;
+  return { id: res.data.id, threadId: res.data.message?.threadId ?? "" };
 }
 
-export async function updateDraft(auth: OAuth2Client, draftId: string, fields: DraftFields): Promise<void> {
+export async function updateDraft(
+  auth: OAuth2Client,
+  draftId: string,
+  fields: DraftFields
+): Promise<{ threadId: string }> {
   const api = gmailClient(auth);
-  await api.users.drafts.update({
+  const res = await api.users.drafts.update({
     userId: "me",
     id: draftId,
-    requestBody: { message: { raw: buildRawMessage(fields) } },
+    requestBody: { message: { raw: buildRawMessage(fields), threadId: fields.threadId } },
   });
+  return { threadId: res.data.message?.threadId ?? "" };
+}
+
+export type ThreadMessage = {
+  id: string;
+  labelIds: string[];
+  messageId: string; // RFC 2822 Message-ID header, with angle brackets
+  references: string;
+  subject: string;
+};
+
+// Reads only headers and labels of one thread (format=metadata) — never
+// message bodies. Needs the gmail.readonly scope; gmail.compose alone cannot
+// read threads. Returns null if the thread no longer exists.
+export async function getThreadMessages(auth: OAuth2Client, threadId: string): Promise<ThreadMessage[] | null> {
+  const api = gmailClient(auth);
+  try {
+    const res = await api.users.threads.get({
+      userId: "me",
+      id: threadId,
+      format: "metadata",
+      metadataHeaders: ["Message-ID", "References", "Subject"],
+    });
+    return (res.data.messages ?? []).map((m) => {
+      const headers = m.payload?.headers ?? [];
+      const get = (name: string) => headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? "";
+      return {
+        id: m.id ?? "",
+        labelIds: m.labelIds ?? [],
+        messageId: get("Message-ID"),
+        references: get("References"),
+        subject: get("Subject"),
+      };
+    });
+  } catch (err: any) {
+    if (err?.code === 404 || err?.response?.status === 404) return null;
+    throw err;
+  }
 }
 
 export type FetchedDraft = {
   id: string;
+  threadId: string;
   to: string;
   cc: string;
   subject: string;
@@ -125,6 +179,7 @@ export async function getDraft(auth: OAuth2Client, draftId: string): Promise<Fet
 
     return {
       id: draftId,
+      threadId: message.threadId ?? "",
       to: getHeader("To"),
       cc: getHeader("Cc"),
       subject: getHeader("Subject"),

@@ -10,7 +10,16 @@ type Lead = {
   stage: string;
   lastError: string;
   mxStatus: string;
+  followup1DraftId: string;
+  followup2DraftId: string;
+  followup3DraftId: string;
 };
+
+const FOLLOW_UPS = [
+  { step: 1, label: "Follow-up 1", key: "followup1DraftId" },
+  { step: 2, label: "Follow-up 2", key: "followup2DraftId" },
+  { step: 3, label: "Final follow-up", key: "followup3DraftId" },
+] as const;
 
 const STAGE_COLORS: Record<string, string> = {
   SOURCED: "bg-slate-100 text-slate-700",
@@ -45,6 +54,8 @@ export default function DashboardPage() {
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [gmailDisconnected, setGmailDisconnected] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +82,29 @@ export default function DashboardPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function draftFollowUp(lead: Lead, step: number, label: string) {
+    setBusyKey(`${lead.rowNumber}-${step}`);
+    setActionMessage(null);
+    try {
+      const res = await fetch("/api/leads/followup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rowNumber: lead.rowNumber, step, websiteUrl: lead.websiteUrl }),
+      });
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      setActionMessage({
+        ok: !!data.ok,
+        text: `${lead.companyName || lead.websiteUrl} — ${label}: ${data.message ?? `Request failed (${res.status})`}`,
+      });
+      if (data.ok) await load();
+    } catch (err: any) {
+      setActionMessage({ ok: false, text: `${lead.companyName || lead.websiteUrl} — ${label}: ${err.message}` });
+    } finally {
+      setBusyKey(null);
+    }
+  }
 
   async function runNow() {
     setRunning(true);
@@ -102,6 +136,16 @@ export default function DashboardPage() {
 
       {runMessage && <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{runMessage}</div>}
 
+      {actionMessage && (
+        <div
+          className={`rounded-md border px-4 py-3 text-sm ${
+            actionMessage.ok ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          {actionMessage.text}
+        </div>
+      )}
+
       {gmailDisconnected && !loading && (
         <div className="flex items-center justify-between gap-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span>Gmail is disconnected (the connection expired or was revoked). The pipeline is paused until you reconnect.</span>
@@ -132,7 +176,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
             <tr>
@@ -141,19 +185,20 @@ export default function DashboardPage() {
               <th className="px-4 py-2">Stage</th>
               <th className="min-w-[110px] px-4 py-2">MX</th>
               <th className="px-4 py-2">Error</th>
+              <th className="min-w-[190px] px-4 py-2">Action</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                   Loading...
                 </td>
               </tr>
             )}
             {!loading && leads.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                   No leads yet.
                 </td>
               </tr>
@@ -177,6 +222,36 @@ export default function DashboardPage() {
                     )}
                   </td>
                   <td className="px-4 py-2 text-red-700">{lead.lastError}</td>
+                  <td className="px-4 py-2">
+                    {lead.stage.trim().toUpperCase() === "DRAFTED" ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {FOLLOW_UPS.map(({ step, label, key }) => {
+                          const done = !!lead[key]?.trim();
+                          const previousDone = step === 1 || !!lead[FOLLOW_UPS[step - 2].key]?.trim();
+                          const busy = busyKey === `${lead.rowNumber}-${step}`;
+                          return (
+                            <button
+                              key={step}
+                              onClick={() => draftFollowUp(lead, step, label)}
+                              disabled={busyKey !== null || (!done && !previousDone)}
+                              title={
+                                done ? `${label} was drafted — click to re-check its status` : !previousDone ? "Draft the previous follow-up first" : `Draft ${label} in the same Gmail thread`
+                              }
+                              className={`whitespace-nowrap rounded-md border px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                                done
+                                  ? "border-green-300 bg-green-50 text-green-800"
+                                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              {busy ? "Drafting..." : done ? `${label} ✓` : label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
                 </tr>
               );
             })}

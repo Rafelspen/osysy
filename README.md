@@ -33,8 +33,10 @@ Copy `.env.example` to `.env.local` and fill in:
    - `http://localhost:3000/api/oauth/google/callback` (local dev)
    - `https://<your-app>.vercel.app/api/oauth/google/callback` (production)
 5. Copy the client ID/secret into your env vars. Scopes requested by the app at connect
-   time: `gmail.compose` and `spreadsheets` (read/write) — no broader Gmail access is ever
-   requested.
+   time: `gmail.compose` (drafts), `gmail.readonly` (only used to read the headers/labels of
+   the one thread each lead's outreach lives in, so follow-ups can be threaded — `gmail.compose`
+   cannot read threads) and `spreadsheets` (read/write). Add all three under the consent
+   screen's Data Access page.
 
 ## 3. Database
 
@@ -165,7 +167,16 @@ Columns A–K, header row required, exact order:
 | J | last_error | Pipeline — human-readable reason a lead is stuck, or a standing warning (e.g. domain mismatch) that persists once raised |
 | K | mx_status | Pipeline (ENRICHED) — `"X/Y valid"`, e.g. `2/3 valid`: of the Y non-empty addresses across D/E/F, X have a domain confirmed able to receive mail (MX, or A/AAAA fallback per RFC 5321), deduped by domain and checked once. The chosen TO address specifically failing (confirmed no mail servers at all) blocks progression; an inconclusive DNS lookup (timeout) never does |
 
-If you connected your Sheet before this column existed, add the header `mx_status` to K1 yourself — the pipeline writes to K on the next ENRICHED lead regardless, but the column won't have a label until you add it.
+| L | gmail_thread_id | Pipeline (OUTREACH) — the Gmail thread of the first draft; follow-ups reply inside it |
+| M | followup_1_draft_id | Dashboard button "Follow-up 1" — dedup key |
+| N | followup_2_draft_id | Dashboard button "Follow-up 2" — dedup key |
+| O | followup_3_draft_id | Dashboard button "Final follow-up" — dedup key |
+
+If you connected your Sheet before these columns existed, add the header `mx_status` to K1 yourself — the pipeline writes to K regardless, but the column won't have a label until you add it. Headers L1:O1 are filled in automatically the first time a follow-up button is used, if all four are empty.
+
+### Follow-ups
+
+Follow-up drafts are created from the dashboard's **Action** column, never automatically and never sent. A follow-up is refused unless the thread proves the previous email was actually sent, and unless nobody has replied or bounced. It is drafted as `Re: <original subject>` with `In-Reply-To`/`References` set from the last sent message, which is what makes Gmail attach it to the same thread. Leads whose first email was drafted and already sent before column L existed can't be recovered, so their follow-ups can't be threaded.
 
 Adding a lead via `/add-lead` writes A + C and sets H = `SOURCED`; everything else starts
 blank and is filled by the pipeline.

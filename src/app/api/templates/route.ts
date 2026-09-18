@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listTemplates, createTemplateVersion, getActiveTemplate } from "@/lib/templates";
+import { listTemplates, createTemplateVersion, getActiveTemplate, isTemplateName } from "@/lib/templates";
 import { errorMessage } from "@/lib/error";
 
 export const dynamic = "force-dynamic";
@@ -15,11 +15,16 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const subject = String(body?.subject ?? "").trim();
   const bodyHtml = String(body?.body_html ?? "").trim();
-  const name = body?.name ? String(body.name).trim() : undefined;
+  const rawName = body?.name ? String(body.name).trim() : "first_outreach";
+  if (!isTemplateName(rawName)) {
+    return NextResponse.json({ error: "unknown template name" }, { status: 400 });
+  }
+  const name = rawName;
+  // Follow-ups are replies in the existing thread and reuse its subject.
+  const subject = name === "first_outreach" ? String(body?.subject ?? "").trim() : "";
 
-  if (!subject || !bodyHtml) {
+  if (!bodyHtml || (name === "first_outreach" && !subject)) {
     return NextResponse.json({ error: "subject and body_html are required" }, { status: 400 });
   }
 

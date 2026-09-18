@@ -11,6 +11,9 @@ export class GmailDisconnectedError extends Error {
 
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/gmail.compose",
+  // Read-only, used solely to read headers/labels of the one thread each lead's
+  // outreach lives in, so follow-ups can be threaded (compose can't read threads).
+  "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/spreadsheets",
 ];
 

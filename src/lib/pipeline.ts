@@ -11,6 +11,15 @@ export type StageResult = {
   updates: Partial<Omit<LeadRow, "rowNumber">>;
 };
 
+// TO is column D; CC is columns E and F, deduped, skipping blanks and the TO.
+export function leadRecipients(lead: LeadRow): { to: string; cc: string | undefined } {
+  const to = lead.officialEmail.trim();
+  const ccList = Array.from(
+    new Set([lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter((e) => e && e.toLowerCase() !== to.toLowerCase()))
+  );
+  return { to, cc: ccList.length ? ccList.join(", ") : undefined };
+}
+
 const DOMAIN_WARNING_PREFIX = "domain mismatch warning:";
 
 // Once a domain-mismatch warning is raised at ENRICHED, keep it visible in
@@ -154,22 +163,20 @@ async function advanceOutreach(auth: OAuth2Client, lead: LeadRow): Promise<Stage
   const companyName = lead.companyName.trim() || lead.websiteUrl;
   const greetingName = lead.greetingName.trim() || companyName;
   const { subject, bodyHtml } = renderTemplate(template, companyName, greetingName);
-  const to = lead.officialEmail.trim();
-  const ccList = Array.from(
-    new Set([lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter((e) => e && e.toLowerCase() !== to.toLowerCase()))
-  );
-  const cc = ccList.length ? ccList.join(", ") : undefined;
+  const { to, cc } = leadRecipients(lead);
   const fields = { to, cc, subject, bodyHtml };
 
   try {
     if (lead.gmailDraftId.trim()) {
-      await updateDraft(auth, lead.gmailDraftId.trim(), fields);
-      return { rowNumber: lead.rowNumber, updates: { stage: "QA", lastError: withCarriedWarning(lead, "") } };
+      const { threadId } = await updateDraft(auth, lead.gmailDraftId.trim(), fields);
+      const updates: StageResult["updates"] = { stage: "QA", lastError: withCarriedWarning(lead, "") };
+      if (threadId && threadId !== lead.threadId) updates.threadId = threadId;
+      return { rowNumber: lead.rowNumber, updates };
     }
-    const draftId = await createDraft(auth, fields);
+    const { id: draftId, threadId } = await createDraft(auth, fields);
     return {
       rowNumber: lead.rowNumber,
-      updates: { gmailDraftId: draftId, stage: "QA", lastError: withCarriedWarning(lead, "") },
+      updates: { gmailDraftId: draftId, threadId, stage: "QA", lastError: withCarriedWarning(lead, "") },
     };
   } catch (err: any) {
     return {

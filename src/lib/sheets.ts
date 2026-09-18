@@ -16,7 +16,11 @@ export type LeadRow = {
   stage: string;
   gmailDraftId: string;
   lastError: string;
-  mxStatus: string; // "" (not yet checked) | "valid" | "no_mx" | "unknown"
+  mxStatus: string; // "" (not yet checked) | "X/Y valid"
+  threadId: string; // Gmail thread of the first outreach draft
+  followup1DraftId: string;
+  followup2DraftId: string;
+  followup3DraftId: string;
 };
 
 const HEADER = [
@@ -31,13 +35,17 @@ const HEADER = [
   "gmail_draft_id",
   "last_error",
   "mx_status",
+  "gmail_thread_id",
+  "followup_1_draft_id",
+  "followup_2_draft_id",
+  "followup_3_draft_id",
 ];
 
 // Ranges omit a sheet name on purpose: the Sheets Values API defaults to the
 // first visible tab when none is given, so this works regardless of what the
 // user names their tab.
-const DATA_RANGE = "A2:K";
-const FULL_RANGE = "A1:K";
+const DATA_RANGE = "A2:O";
+const FULL_RANGE = "A1:O";
 
 export function extractSheetId(url: string): string {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -75,6 +83,21 @@ export async function validateSheetAccess(auth: OAuth2Client, sheetId: string): 
   await api.spreadsheets.values.get({ spreadsheetId: sheetId, range: "A1" });
 }
 
+// Sheets connected before the follow-up columns existed have no labels for
+// L:O. Fill them in, but only when all four are empty so nothing is overwritten.
+export async function ensureFollowupHeaders(auth: OAuth2Client, sheetId: string): Promise<void> {
+  const api = client(auth);
+  const res = await api.spreadsheets.values.get({ spreadsheetId: sheetId, range: "L1:O1" });
+  const existing = (res.data.values?.[0] ?? []).filter((v) => String(v).trim());
+  if (existing.length > 0) return;
+  await api.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: "L1:O1",
+    valueInputOption: "RAW",
+    requestBody: { values: [HEADER.slice(11, 15)] },
+  });
+}
+
 export async function readLeadRows(auth: OAuth2Client, sheetId: string): Promise<LeadRow[]> {
   const api = client(auth);
   const res = await api.spreadsheets.values.get({
@@ -97,6 +120,10 @@ export async function readLeadRows(auth: OAuth2Client, sheetId: string): Promise
       gmailDraftId: row[8] ?? "",
       lastError: row[9] ?? "",
       mxStatus: row[10] ?? "",
+      threadId: row[11] ?? "",
+      followup1DraftId: row[12] ?? "",
+      followup2DraftId: row[13] ?? "",
+      followup3DraftId: row[14] ?? "",
     }))
     .filter((r) => r.source || r.websiteUrl || r.companyName); // skip fully blank trailing rows
 }
@@ -113,7 +140,7 @@ export async function appendLeadRow(
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
-      values: [[data.source, "", data.websiteUrl, "", "", "", "", "SOURCED", "", "", ""]],
+      values: [[data.source, "", data.websiteUrl, "", "", "", "", "SOURCED", "", "", "", "", "", "", ""]],
     },
   });
 }
@@ -138,6 +165,10 @@ export async function updateLeadRow(
     gmailDraftId: "I",
     lastError: "J",
     mxStatus: "K",
+    threadId: "L",
+    followup1DraftId: "M",
+    followup2DraftId: "N",
+    followup3DraftId: "O",
   };
 
   const data: sheets_v4.Schema$ValueRange[] = Object.entries(updates)

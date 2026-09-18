@@ -18,8 +18,13 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <strong>Gmail (gmail.compose):</strong> to create and update draft emails, and to read back the drafts the app
-            created so it can confirm they were saved correctly. The app never sends email and does not read your inbox or
-            other messages.
+            created so it can confirm they were saved correctly. The app never sends email.
+          </li>
+          <li>
+            <strong>Gmail (gmail.readonly):</strong> used only to look at the conversation thread of an outreach email the app
+            drafted, so that follow-up drafts can be placed in the same thread. For that thread the app reads only message
+            headers and labels (the message ID, subject, and whether each message was sent, drafted or received). It does not
+            read message bodies, and it does not read, search or store any other mail in your account.
           </li>
           <li>
             <strong>Google Sheets (spreadsheets):</strong> to read the lead rows in the Sheet you connect and to write
@@ -34,7 +39,11 @@ export default function PrivacyPage() {
             Your Google OAuth refresh token, <strong>encrypted at rest</strong>, and a short-lived access token, so the app
             can keep working without asking you to sign in again each time.
           </li>
-          <li>The link to your Sheet, your email template text, and run logs (counts and error messages).</li>
+          <li>The link to your Sheet, your email template texts, and run logs (counts and error messages).</li>
+          <li>
+            Gmail thread and draft IDs are kept in your own Sheet (not in our database) so follow-ups can find the right
+            thread.
+          </li>
         </ul>
         <p>
           Your lead data stays in <strong>your own Google Sheet</strong>, and drafts stay in <strong>your own Gmail</strong>;
