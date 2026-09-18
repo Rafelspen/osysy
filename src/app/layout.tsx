@@ -32,6 +32,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
           <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+          <footer className="mx-auto max-w-5xl px-6 pb-8 text-xs text-slate-400">
+            <Link href="/privacy" className="hover:text-slate-600">
+              Privacy Policy
+            </Link>
+            <span className="mx-2">·</span>
+            <Link href="/terms" className="hover:text-slate-600">
+              Terms of Service
+            </Link>
+          </footer>
         </div>
       </body>
     </html>
