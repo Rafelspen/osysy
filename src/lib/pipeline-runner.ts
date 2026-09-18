@@ -20,7 +20,10 @@ export async function runPipelineTick(): Promise<TickSummary> {
 
   const account = await getAccountRow();
   if (!account?.gmail_connected || !account?.sheet_connected || !account.sheet_id) {
-    return { skipped: "Gmail and/or Sheet not connected", leadsProcessed: 0, errors: [] };
+    const reason = !account?.gmail_connected
+      ? "Gmail disconnected — reconnect on /connect"
+      : "Sheet not connected";
+    return { skipped: reason, leadsProcessed: 0, errors: [] };
   }
 
   const locked = await acquireLock(runId);

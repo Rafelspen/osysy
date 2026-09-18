@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const [running, setRunning] = useState(false);
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [gmailDisconnected, setGmailDisconnected] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,6 +57,7 @@ export default function DashboardPage() {
       setLeads(data.leads ?? []);
       setCounts(data.counts ?? {});
       setConnected(data.connected ?? false);
+      setGmailDisconnected(!!data.gmailDisconnected);
     } catch (err: any) {
       setLoadError(err.message ?? "Failed to load leads");
       setLeads([]);
@@ -99,6 +101,15 @@ export default function DashboardPage() {
       </div>
 
       {runMessage && <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{runMessage}</div>}
+
+      {gmailDisconnected && !loading && (
+        <div className="flex items-center justify-between gap-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span>Gmail is disconnected (the connection expired or was revoked). The pipeline is paused until you reconnect.</span>
+          <a href="/api/oauth/google" className="whitespace-nowrap rounded-md bg-red-700 px-3 py-1.5 font-medium text-white hover:bg-red-800">
+            Reconnect Gmail
+          </a>
+        </div>
+      )}
 
       {loadError && !loading && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

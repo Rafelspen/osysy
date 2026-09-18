@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAccountRow, getAuthorizedClient } from "@/lib/google-oauth";
+import { getAccountRow, getAuthorizedClient, GmailDisconnectedError } from "@/lib/google-oauth";
 import { readLeadRows, PIPELINE_STAGES } from "@/lib/sheets";
 import { errorMessage } from "@/lib/error";
 
@@ -10,6 +10,11 @@ export async function GET() {
     const account = await getAccountRow();
     if (!account?.sheet_connected || !account.sheet_id) {
       return NextResponse.json({ connected: false, leads: [], counts: {} });
+    }
+
+    // Known-dead connection: don't hit Google on every dashboard load.
+    if (!account.gmail_connected) {
+      return NextResponse.json({ connected: true, gmailDisconnected: true, leads: [], counts: {} });
     }
 
     const auth = await getAuthorizedClient();
@@ -23,6 +28,9 @@ export async function GET() {
 
     return NextResponse.json({ connected: true, leads, counts });
   } catch (err: any) {
+    if (err instanceof GmailDisconnectedError) {
+      return NextResponse.json({ connected: true, gmailDisconnected: true, leads: [], counts: {} });
+    }
     return NextResponse.json({ connected: false, leads: [], counts: {}, error: errorMessage(err) }, { status: 500 });
   }
 }

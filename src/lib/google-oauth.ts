@@ -2,6 +2,13 @@ import { google } from "googleapis";
 import { query } from "./db";
 import { encrypt, decrypt } from "./crypto";
 
+export class GmailDisconnectedError extends Error {
+  constructor() {
+    super("Gmail connection expired or was revoked — reconnect Gmail on /connect");
+    this.name = "GmailDisconnectedError";
+  }
+}
+
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/gmail.compose",
   "https://www.googleapis.com/auth/spreadsheets",
@@ -89,7 +96,18 @@ export async function getAuthorizedClient() {
   const needsRefresh = !account.google_access_token || expiry < Date.now() + 60_000;
 
   if (needsRefresh) {
-    const { credentials } = await client.refreshAccessToken();
+    let credentials;
+    try {
+      ({ credentials } = await client.refreshAccessToken());
+    } catch (err: any) {
+      // Only a definitive "token is dead" answer flips the flag — a network
+      // blip or Google outage must never mark a healthy connection as lost.
+      if (err?.response?.data?.error === "invalid_grant" || String(err?.message).includes("invalid_grant")) {
+        await query(`UPDATE account_connection SET gmail_connected = FALSE, google_access_token = NULL, updated_at = now() WHERE id = 1`);
+        throw new GmailDisconnectedError();
+      }
+      throw err;
+    }
     client.setCredentials(credentials);
     await query(
       `UPDATE account_connection SET google_access_token = $1, google_token_expiry = $2, updated_at = now() WHERE id = 1`,
