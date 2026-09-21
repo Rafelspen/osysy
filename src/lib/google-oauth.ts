@@ -53,6 +53,31 @@ export async function getAccountRow(): Promise<AccountRow | null> {
   return rows[0] ?? null;
 }
 
+// Removes this app's access to the connected Google account and forgets the
+// stored tokens, so a different account can be connected. The Sheet link is kept.
+export async function disconnectGmail(): Promise<{ revoked: boolean }> {
+  const account = await getAccountRow();
+  let revoked = false;
+  if (account?.google_refresh_token) {
+    try {
+      await createOAuthClient().revokeToken(decrypt(account.google_refresh_token));
+      revoked = true;
+    } catch {
+      // Already revoked/expired, or Google unreachable — still clear locally.
+    }
+  }
+  await query(
+    `UPDATE account_connection SET
+       google_refresh_token = NULL,
+       google_access_token = NULL,
+       google_token_expiry = NULL,
+       gmail_connected = FALSE,
+       updated_at = now()
+     WHERE id = 1`
+  );
+  return { revoked };
+}
+
 export async function handleOAuthCallback(code: string): Promise<void> {
   const client = createOAuthClient();
   const { tokens } = await client.getToken(code);

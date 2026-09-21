@@ -148,7 +148,7 @@ export default function DashboardPage() {
 
       {gmailDisconnected && !loading && (
         <div className="flex items-center justify-between gap-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <span>Gmail is disconnected (the connection expired or was revoked). The pipeline is paused until you reconnect.</span>
+          <span>Gmail is disconnected (it expired, was revoked, or was disconnected on purpose). The pipeline is paused until you connect an account.</span>
           <a href="/api/oauth/google" className="whitespace-nowrap rounded-md bg-red-700 px-3 py-1.5 font-medium text-white hover:bg-red-800">
             Reconnect Gmail
           </a>

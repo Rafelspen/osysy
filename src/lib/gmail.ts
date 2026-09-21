@@ -107,6 +107,11 @@ export async function updateDraft(
   return { threadId: res.data.message?.threadId ?? "" };
 }
 
+export async function getConnectedEmail(auth: OAuth2Client): Promise<string | null> {
+  const res = await gmailClient(auth).users.getProfile({ userId: "me" });
+  return res.data.emailAddress ?? null;
+}
+
 export type ThreadMessage = {
   id: string;
   labelIds: string[];

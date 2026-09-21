@@ -362,7 +362,10 @@ deployment (see 10.7).
 3. Google lists three permissions — manage drafts, read email (used only for the headers of threads this
    app created), and Google Sheets. Approve them. (Option B shows an "unverified app / testing" screen:
    choose *Continue*.)
-4. You return to `/connect` with "Gmail connected".
+4. You return to `/connect` with "Gmail connected", and the page shows **Connected as `<the address>`**.
+   To switch accounts later, click **Disconnect Gmail** on that page (it also revokes this app's access in
+   the Google account), then **Connect Gmail** again and choose the other account. The Sheet link is kept,
+   so the new account must be able to open that Sheet.
 5. Make sure the business account can open your lead Sheet: the Sheet must be owned by that account, or
    shared with it as **Editor**.
 6. Paste the Sheet URL under **Google Sheet** and click **Save & Validate**. A blank Sheet gets its header

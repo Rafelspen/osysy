@@ -1,5 +1,7 @@
-import { getAccountRow } from "@/lib/google-oauth";
+import { getAccountRow, getAuthorizedClient } from "@/lib/google-oauth";
+import { getConnectedEmail } from "@/lib/gmail";
 import { errorMessage } from "@/lib/error";
+import DisconnectGmailButton from "./DisconnectGmailButton";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,7 @@ function StatusBadge({ connected }: { connected: boolean }) {
 export default async function ConnectPage({
   searchParams,
 }: {
-  searchParams: { connected?: string; error?: string };
+  searchParams: { connected?: string; error?: string; disconnected?: string };
 }) {
   let account: Awaited<ReturnType<typeof getAccountRow>> = null;
   let dbError: string | null = null;
@@ -26,6 +28,16 @@ export default async function ConnectPage({
     account = await getAccountRow();
   } catch (err) {
     dbError = errorMessage(err);
+  }
+
+  // Show which Google account is connected so it's clear what you'd be switching from.
+  let connectedEmail: string | null = null;
+  if (account?.gmail_connected) {
+    try {
+      connectedEmail = await getConnectedEmail(await getAuthorizedClient());
+    } catch {
+      // Purely informational — the page works without it.
+    }
   }
 
   return (
@@ -48,22 +60,44 @@ export default async function ConnectPage({
           {searchParams.connected === "gmail" ? "Gmail connected." : "Sheet connected."}
         </div>
       )}
+      {searchParams.disconnected && (
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          Gmail disconnected. Click Connect Gmail below and choose the account you want to use.
+        </div>
+      )}
 
       <section className="rounded-lg border border-slate-200 bg-white p-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-medium text-slate-900">Gmail</h2>
           <StatusBadge connected={!!account?.gmail_connected} />
         </div>
+        {account?.gmail_connected && connectedEmail && (
+          <p className="mb-3 text-sm text-slate-800">
+            Connected as <strong>{connectedEmail}</strong>
+          </p>
+        )}
         <p className="mb-4 text-sm text-slate-600">
-          Grants read/write access to create and update drafts (<code>gmail.compose</code>) and to read/write the
+          Grants access to create and update drafts (<code>gmail.compose</code>), to read the headers of the outreach
+          threads it created so follow-ups stay in the same thread (<code>gmail.readonly</code>), and to read/write the
           lead Sheet (<code>spreadsheets</code>).
         </p>
-        <a
-          href="/api/oauth/google"
-          className="inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-        >
-          {account?.gmail_connected ? "Reconnect Gmail" : "Connect Gmail"}
-        </a>
+        <div className="flex flex-wrap items-start gap-3">
+          <a
+            href="/api/oauth/google"
+            className="inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+          >
+            {account?.gmail_connected ? "Reconnect Gmail" : "Connect Gmail"}
+          </a>
+          {account?.gmail_connected && (
+            <div>
+              <DisconnectGmailButton />
+            </div>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          To switch accounts: Disconnect Gmail, then Connect Gmail and pick the other account. Your Sheet link is kept,
+          so the account you connect next must be able to open that Sheet.
+        </p>
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-6">
