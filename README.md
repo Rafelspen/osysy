@@ -107,8 +107,10 @@ to trigger a tick manually instead of waiting on the scheduler.
    **Measured on the first install:** the GitHub schedule is set to every minute, but GitHub started it only
    about every 2–6 hours (31 runs in four days). Every run succeeded; they were just rare. GitHub throttles
    high-frequency schedules and gives no timing guarantee. Keep it as a free backup if you like, but for timely
-   drafts use Vercel Pro cron or an external scheduler. The **Run pipeline now** button on the dashboard always
-   works, and `/api/health` shows `cron_looks_alive` so you can see whether automatic runs are really happening.
+   drafts use Vercel Pro cron or an external scheduler. **No scheduler is needed at low volume:** the dashboard's
+   **Run pipeline now** button does one step for every waiting lead, and **Run until done** repeats it
+   automatically until every lead is `DRAFTED` (it stops on its own if leads get stuck, and has a Stop button).
+   And `/api/health` shows `cron_looks_alive` so you can see whether automatic runs are really happening.
 5. First-time connect happens the same way as local dev: visit `/connect` on the deployed
    URL, connect Gmail, connect the Sheet.
 
