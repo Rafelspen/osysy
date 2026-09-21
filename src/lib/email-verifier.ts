@@ -312,6 +312,13 @@ export async function verifyWithProvider(
   apiKeyOverride?: string,
   clayTiming?: ClayTiming
 ): Promise<ProviderResult> {
+  const keyToCheck = apiKeyOverride ?? env(META[id].envKey!);
+  if (keyToCheck && /[^\x21-\x7e]/.test(keyToCheck)) {
+    throw new VerifierError(
+      "auth",
+      `${META[id].envKey} contains a character that isn't allowed (a space, quote, line break, or a symbol like … or •). Copy the full key again, paste it with nothing around it, save and redeploy.`
+    );
+  }
   if (id === "clay") {
     const apiKey = apiKeyOverride ?? env("CLAY_API_KEY");
     const functionId = env("CLAY_FUNCTION_ID");
