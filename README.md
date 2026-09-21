@@ -186,3 +186,203 @@ blank and is filled by the pipeline.
 Multi-user auth, actual email sending (always draft-only), compliance/opt-out automation
 (worth adding before real volume — not part of this build), anything shared with another
 project.
+
+## 10. Connect your business Gmail (step by step)
+
+This app is **single-account**: it holds one Google connection at a time. Connecting your business
+account replaces whichever account was connected before (for example a personal Gmail used for testing).
+Your leads, templates and Sheet are not affected.
+
+Below, `https://obsys-silk.vercel.app` is the production address. If you later add a custom domain, use
+that everywhere instead.
+
+### 10.1 Choose how the Google app is set up
+
+| | Option A — Internal (recommended for your own Workspace) | Option B — External |
+|---|---|---|
+| Who can connect | Only accounts in your Workspace organization (e.g. `@sesinf.net`) | Any Google account you list as a test user |
+| Weekly reconnect | **No** — the 7-day token limit only applies to External apps in "Testing" | **Yes**, about every 7 days while in "Testing" |
+| Google verification | Not needed | Needed to publish (see section 2 and the privacy/terms pages) |
+| Requirement | The Google Cloud **project must belong to your Workspace organization** | None |
+| Good for | Running this for your own business | Testing with a personal Gmail, or later selling the app |
+
+If you use a personal `@gmail.com` account, only Option B exists. The steps below cover both; the
+difference is one setting in step 3.
+
+### 10.2 Google Cloud Console
+
+Do this signed in as the account that will own the project (for Option A, your business admin account).
+
+1. Open [console.cloud.google.com](https://console.cloud.google.com) and create a project (name it `obsys`).
+   For **Option A**, check that the *Location / Organization* on the create screen is your organization
+   (e.g. `sesinf.net`), not "No organization".
+2. **APIs & Services → Library**: enable **Gmail API** and **Google Sheets API**.
+3. Open **Google Auth Platform** (older UI: *OAuth consent screen*):
+   - **Audience / User type**: pick **Internal** (Option A) or **External** (Option B). If *Internal* is
+     greyed out, the project is not inside your organization — create it again under the organization.
+   - **Option B only**: under *Test users* add the exact Google address you will connect
+     (for example `rafael@sesinf.net`). Keep publishing status on **Testing**.
+   - **Branding**: app name `obsys`, and your support email. Leave the home page, privacy and terms link
+     fields empty unless you are submitting for verification (Google can only verify domains you own, not
+     `vercel.app` addresses).
+4. **Data Access → Add or remove scopes**: add all three, then save:
+   - `https://www.googleapis.com/auth/gmail.compose`
+   - `https://www.googleapis.com/auth/gmail.readonly`
+   - `https://www.googleapis.com/auth/spreadsheets`
+5. **Clients → Create client** (older UI: *Credentials → Create credentials → OAuth client ID*):
+   - Application type: **Web application**
+   - **Authorized redirect URI**: `https://obsys-silk.vercel.app/api/oauth/google/callback`
+     (exact match, no trailing slash). For local development also add `http://localhost:3000/api/oauth/google/callback`.
+   - Copy the **Client ID** and **Client secret**.
+
+### 10.3 Workspace admin console (Workspace accounts only)
+
+If Google shows "This app is blocked" or "Access blocked: admin policy" when you connect, your
+organization restricts third-party apps:
+
+1. [admin.google.com](https://admin.google.com) → **Security → Access and data control → API controls**.
+2. **App access control → Manage Third-Party App Access → Add app → OAuth App Name Or Client ID**.
+3. Paste the Client ID from step 5, choose it, and set access to **Trusted**.
+
+### 10.4 Vercel environment variables
+
+In the Vercel project: **Settings → Environment Variables**. Set these for **Production**
+(create them as normal variables — do not tick "Sensitive", which stopped them reaching the running app
+during setup):
+
+| Variable | Value |
+|---|---|
+| `GOOGLE_CLIENT_ID` | Client ID from step 5 |
+| `GOOGLE_CLIENT_SECRET` | Client secret from step 5 |
+| `GOOGLE_REDIRECT_URI` | `https://obsys-silk.vercel.app/api/oauth/google/callback` (same as step 5) |
+
+`DATABASE_URL`, `TOKEN_ENCRYPTION_KEY` and `CRON_SECRET` stay as they are. Changing the client ID or
+secret invalidates any earlier Google connection, so you will reconnect in the next step.
+
+Then **redeploy** (Deployments → the latest one → Redeploy) and make sure the live address points at that
+deployment (see 10.7).
+
+### 10.5 Connect in the app
+
+1. Open `https://obsys-silk.vercel.app/connect`.
+2. Click **Connect Gmail** (or **Reconnect Gmail**) and pick your **business** account.
+3. Google lists three permissions — manage drafts, read email (used only for the headers of threads this
+   app created), and Google Sheets. Approve them. (Option B shows an "unverified app / testing" screen:
+   choose *Continue*.)
+4. You return to `/connect` with "Gmail connected".
+5. Make sure the business account can open your lead Sheet: the Sheet must be owned by that account, or
+   shared with it as **Editor**.
+6. Paste the Sheet URL under **Google Sheet** and click **Save & Validate**. A blank Sheet gets its header
+   row written automatically; an existing one must already have the header row from section 8.
+
+### 10.6 Check it works
+
+1. `/add-lead`: add one test lead (a company whose site shows a contact email).
+2. `/dashboard`: click **Run pipeline now** about six times, or wait for the automatic run. The lead should
+   move to `DRAFTED`.
+3. Open Gmail → Drafts and confirm the draft (To/Cc, subject, body).
+4. Send that first email to yourself or a test address, then click **Follow-up 1** on the dashboard
+   (after saving the follow-up templates on `/templates`). The follow-up should appear as a draft inside
+   the same thread.
+
+### 10.7 Troubleshooting
+
+| What you see | Cause and fix |
+|---|---|
+| `Error 403: access_denied` / "has not completed verification" | Option B and the account isn't a test user — add it under Test users. |
+| "Access blocked: admin policy" / "app is blocked" | Workspace admin restriction — do 10.3. |
+| `redirect_uri_mismatch` | The redirect URI in Google and `GOOGLE_REDIRECT_URI` differ. Make them identical (scheme, host, path). |
+| "Google OAuth env vars are not fully configured" | A variable is missing/empty for Production, or you didn't redeploy after setting it. Re-save as a normal variable and redeploy. |
+| Red banner "Gmail is disconnected" on the dashboard | The connection expired or was revoked (Option B every ~7 days; any option after a password change). Click **Reconnect Gmail**. |
+| Follow-up says "Gmail needs the new read permission" | The connection predates `gmail.readonly`. Add the scope (step 4) and click **Reconnect Gmail**. |
+| Follow-up says the first email hasn't been sent | Send it from Gmail first; the app only threads onto an email that was really sent. |
+| Sheet error like "not found" / 403 on Save & Validate | The connected account can't open the Sheet — share it as Editor. |
+| Live site shows old code after a deploy | The `obsys-silk.vercel.app` alias didn't move. Run `npx vercel alias set <newest-deployment-url> obsys-silk.vercel.app`. A custom domain follows new deploys automatically. |
+
+### 10.8 Deliverability check for the business domain
+
+Before sending real volume, confirm the domain's records (replace the domain):
+
+```bash
+node -e "const d=require('dns').promises,x='sesinf.net',t=async n=>(await d.resolveTxt(n)).map(a=>a.join(''));(async()=>{console.log('MX',JSON.stringify(await d.resolveMx(x)));console.log('SPF',await t(x));console.log('DMARC',await t('_dmarc.'+x));console.log('DKIM',await t('google._domainkey.'+x))})()"
+```
+
+You want Google MX records, an SPF record containing `include:_spf.google.com`, a DMARC record, and a
+`google._domainkey` DKIM record. Then send 3–5 test emails to other inboxes and, in Gmail's
+**Show original**, confirm `SPF`, `DKIM` and `DMARC` all say `PASS`. Start at 10–20 emails a day and
+increase slowly over a few weeks.
+
+## 11. Instructions for an AI agent
+
+Use this section when an AI coding agent (for example Claude Code) is asked to help connect a Google
+account to this deployment. It tells the agent what it can do itself, what it must hand to the human,
+and how to verify each step. Replace `$APP` with the production address (`https://obsys-silk.vercel.app`).
+
+### 11.1 Rules
+
+The agent **must not**:
+
+- type, paste or store any secret — Google client secret, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET`, database
+  URL — into any field, CLI command (`vercel env add`), file or message. The human enters these.
+- sign in to Google, click through a consent screen, accept terms, create the OAuth client, or change
+  Workspace admin settings. These need the human's own account.
+- print secret values: never `cat .env.local`, and never echo variables that hold credentials.
+
+The agent **may**: read the repo, run read-only Vercel and DNS commands, call the app's public endpoints,
+check deployments and aliases, and tell the human exactly what to do next. When it hands off, it should
+say precisely what the human must click or paste, then wait.
+
+### 11.2 Runbook
+
+1. **Confirm which setup is intended.** Ask: is the Google account a Workspace business account (Option A
+   Internal is possible) or a personal Gmail (Option B)? Which address will connect? Use section 10.1.
+2. **Hand off 10.2 to the human** (Cloud project, APIs, audience, scopes, OAuth client, redirect URI).
+   Ask them to confirm they have a Client ID and secret, without sending the secret.
+3. **Hand off 10.4 to the human** (Vercel variables). Then check the names exist without reading values:
+   ```bash
+   npx vercel env ls
+   ```
+   Required names for Production: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`,
+   `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET`, `DATABASE_URL`.
+4. **Make sure the newest code is live.**
+   ```bash
+   npx vercel ls --format json     # newest deployment should be READY
+   npx vercel alias ls             # which deployment obsys-silk points to
+   ```
+   If the alias points at an older deployment than the newest READY one, run
+   `npx vercel alias set <newest-ready-url> obsys-silk.vercel.app`. Never redeploy an old commit from
+   the dashboard — it moves production backwards. If Vercel is slow to build a push,
+   `npx vercel deploy --prod --non-interactive` deploys the current working tree directly.
+5. **Verify the OAuth client without seeing secrets.** The login redirect exposes only public values:
+   ```bash
+   curl -sI $APP/api/oauth/google | grep -i '^location'
+   ```
+   Decode the `Location` URL and check that `client_id` is the new client's ID, `redirect_uri` equals
+   `$APP/api/oauth/google/callback`, and `scope` contains `gmail.compose`, `gmail.readonly` and
+   `spreadsheets`. If the redirect goes to `/connect?error=...` the env vars are not visible to the running
+   deployment — redeploy and re-check.
+6. **Hand off 10.5 to the human**: open `$APP/connect`, click Connect Gmail, choose the business account,
+   approve. Wait for them to say it's done.
+7. **Verify the connection.**
+   ```bash
+   curl -s $APP/api/leads
+   ```
+   Expect `"connected":true` with no `"gmailDisconnected":true` and no `"error"`. If the dashboard shows the
+   red Reconnect banner, the token was rejected — see 10.7.
+8. **Verify the pipeline** with the manual trigger (needs no secret):
+   ```bash
+   curl -s -X POST $APP/api/pipeline/run-now
+   ```
+   `leadsProcessed` should be a number and `errors` should not mention Gmail or Sheets access.
+9. **Check the sending domain** with the command in 10.8 and report SPF, DKIM and DMARC status.
+10. **Follow-up test (with the human).** After they add a test lead, send its first email from Gmail and
+    save the follow-up templates, ask them to click Follow-up 1 and confirm the draft sits inside the
+    same thread.
+
+### 11.3 Stop and ask the human when
+
+- Google shows `access_denied`, "app is blocked" or `redirect_uri_mismatch` — report the exact message and
+  point to the matching row in 10.7.
+- `npx vercel env ls` is missing a required name.
+- Any step would require entering a secret, signing in to Google or accepting terms.
+- The production alias points at a build older than the latest commit and moving it is not authorized.
