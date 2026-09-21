@@ -1,0 +1,310 @@
+/*
+ * "Deep hydro-glass" theme. Styling only: it re-skins the existing Tailwind
+ * classes and changes no markup or behaviour. Everything is scoped to
+ * body.hydro. To switch the whole theme off, remove className="hydro" from
+ * <body> in layout.tsx (or `git checkout ui-classic-f77a7f1 -- src/app`).
+ */
+
+body.hydro {
+  --aqua: #00e5ff;
+  --cyan: #00f0ff;
+  --mint: #00e676;
+  --amber: #ff9800;
+  --glass-rim: rgba(255, 255, 255, 0.18);
+  --ink: #e6f7ff;
+  --ink-soft: #b8d6e6;
+  color: var(--ink);
+  font-family: Inter, "SF Pro Display", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #031a24;
+  background-image:
+    radial-gradient(1100px 700px at 12% -8%, rgba(0, 229, 255, 0.26), transparent 62%),
+    radial-gradient(900px 620px at 92% 8%, rgba(0, 110, 200, 0.32), transparent 58%),
+    radial-gradient(1000px 800px at 55% 112%, rgba(0, 200, 180, 0.24), transparent 62%),
+    linear-gradient(180deg, #02222d 0%, #03192b 55%, #020f1d 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ---- Liquid light: caustics + drifting smoke (one fixed layer) ------------ */
+body.hydro::before {
+  content: "";
+  position: fixed;
+  inset: -15%;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(520px 340px at 22% 28%, rgba(140, 240, 255, 0.16), transparent 70%),
+    radial-gradient(640px 400px at 78% 22%, rgba(0, 170, 255, 0.14), transparent 70%),
+    radial-gradient(700px 460px at 60% 78%, rgba(0, 230, 200, 0.12), transparent 70%),
+    repeating-radial-gradient(ellipse 620px 380px at 35% 55%, rgba(160, 240, 255, 0.05) 0 2px, transparent 2px 46px),
+    repeating-radial-gradient(ellipse 760px 460px at 80% 35%, rgba(120, 220, 255, 0.045) 0 2px, transparent 2px 58px);
+  mix-blend-mode: screen;
+  animation: hydro-drift 60s ease-in-out infinite alternate;
+}
+
+/* ---- Floating bubbles / sparkles ------------------------------------------ */
+body.hydro::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(200, 245, 255, 0.55) 0 1.6px, transparent 2.6px),
+    radial-gradient(circle, rgba(140, 230, 255, 0.40) 0 1.2px, transparent 2px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.30) 0 2.4px, rgba(120, 230, 255, 0.10) 3px, transparent 5px);
+  background-size: 260px 320px, 410px 470px, 620px 700px;
+  background-position: 30px 60px, 180px 200px, 320px 90px;
+  opacity: 0.55;
+  animation: hydro-rise 70s linear infinite;
+}
+
+@keyframes hydro-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 2%, 0) scale(1.06); }
+}
+@keyframes hydro-rise {
+  from { background-position: 30px 60px, 180px 200px, 320px 90px; }
+  to { background-position: 30px -260px, 180px -270px, 320px -610px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.hydro::before, body.hydro::after { animation: none; }
+}
+
+/* ---- Text ------------------------------------------------------------------ */
+.hydro .text-slate-900 { color: #f2fcff; }
+.hydro .text-slate-800 { color: #e6f7ff; }
+.hydro .text-slate-700 { color: #d3ecf7; }
+.hydro .text-slate-600 { color: #b8d6e6; }
+.hydro .text-slate-500 { color: #9cbbcc; }
+.hydro .text-slate-400 { color: #84a3b5; }
+.hydro .text-slate-300 { color: #6e8da0; }
+.hydro .hover\:text-slate-900:hover,
+.hydro .hover\:text-slate-800:hover,
+.hydro .hover\:text-slate-700:hover,
+.hydro .hover\:text-slate-600:hover { color: var(--cyan); }
+.hydro h1, .hydro h2, .hydro h3 {
+  color: #f2fcff;
+  text-shadow: 0 0 18px rgba(0, 229, 255, 0.35);
+}
+.hydro a { text-underline-offset: 3px; }
+.hydro main a:not([class*="bg-"]):not([class*="border"]) { color: #8fe9ff; }
+.hydro ::selection { background: rgba(0, 229, 255, 0.35); color: #fff; }
+
+/* ---- Top bar ----------------------------------------------------------------- */
+.hydro header.bg-white {
+  background: linear-gradient(180deg, rgba(8, 24, 48, 0.72), rgba(8, 24, 48, 0.45));
+  border-bottom: 1px solid rgba(120, 230, 255, 0.22);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 30px rgba(0, 20, 40, 0.35), inset 0 -1px 0 rgba(0, 229, 255, 0.10);
+}
+.hydro header .font-semibold {
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 14px rgba(0, 229, 255, 0.7);
+}
+
+/* ---- Panels: cards, table wrapper, side panel -------------------------------- */
+.hydro .rounded-lg.bg-white {
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(0, 20, 40, 0.6));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-rim);
+  box-shadow: 0 18px 50px rgba(0, 40, 60, 0.45), inset 0 1px 0 rgba(120, 240, 255, 0.35);
+}
+.hydro .bg-white {
+  background-color: rgba(8, 24, 48, 0.45);
+}
+.hydro .bg-slate-50 { background-color: rgba(0, 229, 255, 0.06); }
+.hydro .bg-slate-100 { background-color: rgba(200, 230, 255, 0.10); }
+.hydro .hover\:bg-slate-50:hover { background-color: rgba(0, 229, 255, 0.12); }
+.hydro .border-slate-100 { border-color: rgba(255, 255, 255, 0.07); }
+.hydro .border-slate-200 { border-color: rgba(255, 255, 255, 0.16); }
+.hydro .border-slate-300 { border-color: rgba(120, 230, 255, 0.35); }
+.hydro .border-transparent { border-color: transparent; }
+
+/* ---- Metric cards (the six stage counters) ------------------------------------ */
+.hydro .grid.grid-cols-3 > div {
+  position: relative;
+  border-radius: 24px;
+  padding: 0.9rem 0.75rem;
+  border: 1px solid rgba(120, 230, 255, 0.4);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.04) 38%, rgba(0, 20, 40, 0.10) 100%),
+    linear-gradient(135deg, rgba(0, 90, 130, 0.45), rgba(0, 20, 40, 0.65));
+  box-shadow: 0 10px 26px rgba(0, 20, 40, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -8px 16px rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.hydro .grid.grid-cols-3 > div:hover {
+  border-color: rgba(120, 240, 255, 0.7);
+  box-shadow: 0 10px 30px rgba(0, 200, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -8px 16px rgba(0, 0, 0, 0.2);
+}
+.hydro .grid.grid-cols-3 > div p:first-child { color: rgba(200, 230, 255, 0.65); letter-spacing: 0.1em; }
+.hydro .grid.grid-cols-3 > div p:last-child { color: #f2fcff; text-shadow: 0 0 14px rgba(0, 229, 255, 0.55); }
+/* the last card (DRAFTED) is the highlighted one */
+.hydro .grid.grid-cols-3 > div:last-child {
+  border-color: rgba(120, 250, 255, 0.75);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(0, 240, 255, 0.35), transparent 65%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.05) 38%, rgba(0, 20, 40, 0.1) 100%),
+    linear-gradient(135deg, rgba(0, 120, 160, 0.55), rgba(0, 30, 60, 0.7));
+  box-shadow: 0 0 26px rgba(0, 229, 255, 0.35), 0 10px 26px rgba(0, 20, 40, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.hydro .grid.grid-cols-3 > div:last-child p:first-child::before {
+  content: "\2726  ";
+  color: var(--cyan);
+  text-shadow: 0 0 8px var(--aqua);
+}
+.hydro .grid.grid-cols-3 > div:last-child p:last-child {
+  color: #e879ff;
+  text-shadow: 0 0 16px rgba(217, 70, 239, 0.8);
+}
+
+/* ---- Table -------------------------------------------------------------------- */
+.hydro table thead {
+  background: rgba(0, 229, 255, 0.05);
+  color: rgba(200, 230, 255, 0.6);
+  letter-spacing: 0.08em;
+}
+.hydro table tbody tr { transition: background-color 0.15s ease; }
+.hydro table tbody tr:hover { background-color: rgba(0, 229, 255, 0.05); }
+
+/* ---- Badges / pills ------------------------------------------------------------- */
+.hydro .rounded-full[class*="bg-"] {
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.hydro .bg-green-100, .hydro .bg-green-50 { background-color: rgba(0, 230, 118, 0.16); }
+.hydro .bg-green-100.rounded-full {
+  background: linear-gradient(180deg, rgba(0, 230, 118, 0.30), rgba(0, 230, 118, 0.10));
+  box-shadow: inset 0 0 0 1px rgba(0, 230, 118, 0.5), 0 0 12px rgba(0, 230, 118, 0.28);
+}
+.hydro .text-green-800 { color: #69f0ae; }
+.hydro .border-green-200, .hydro .border-green-300 { border-color: rgba(0, 230, 118, 0.45); }
+
+.hydro .bg-red-100, .hydro .bg-red-50 { background-color: rgba(255, 82, 82, 0.16); }
+.hydro .bg-red-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 82, 82, 0.30), rgba(255, 82, 82, 0.10));
+  box-shadow: inset 0 0 0 1px rgba(255, 110, 110, 0.5), 0 0 12px rgba(255, 82, 82, 0.25);
+}
+.hydro .text-red-800, .hydro .text-red-700 { color: #ff8a80; }
+.hydro .border-red-200, .hydro .border-red-300 { border-color: rgba(255, 110, 110, 0.45); }
+
+.hydro .bg-amber-100, .hydro .bg-amber-50 { background-color: rgba(180, 110, 40, 0.35); }
+.hydro .bg-amber-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 152, 0, 0.32), rgba(180, 110, 40, 0.18));
+  box-shadow: inset 0 0 0 1px rgba(255, 152, 0, 0.55), 0 0 12px rgba(255, 152, 0, 0.22);
+}
+.hydro .text-amber-800, .hydro .text-amber-900 { color: #ffc107; }
+.hydro .border-amber-200 { border-color: rgba(255, 170, 0, 0.5); }
+
+.hydro .bg-blue-100, .hydro .bg-blue-50 { background-color: rgba(0, 163, 255, 0.18); }
+.hydro .text-blue-800, .hydro .text-blue-900 { color: #7de7ff; }
+.hydro .border-blue-200, .hydro .border-blue-300 { border-color: rgba(120, 230, 255, 0.5); }
+.hydro .border-blue-600 { border-color: var(--aqua); }
+.hydro .bg-blue-600 { background-color: #00b8e6; }
+.hydro .hover\:bg-blue-100:hover { background-color: rgba(0, 229, 255, 0.25); }
+
+.hydro .bg-indigo-100 { background-color: rgba(129, 140, 248, 0.2); }
+.hydro .text-indigo-800 { color: #b4bcff; }
+.hydro .bg-purple-100 { background-color: rgba(217, 70, 239, 0.2); }
+.hydro .text-purple-800 { color: #f0a6ff; }
+
+/* ---- Buttons ---------------------------------------------------------------------- */
+.hydro .bg-slate-900.text-white {
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #00a3ff, #00e5ff);
+  color: #04203a;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: box-shadow 0.15s ease, filter 0.15s ease;
+}
+.hydro .bg-slate-900.text-white:hover:not(:disabled) {
+  background: linear-gradient(90deg, #22b4ff, #4df0ff);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.hydro .bg-slate-900.text-white:disabled { box-shadow: none; filter: saturate(0.6); }
+
+/* secondary buttons: dark glass with a cyan rim */
+.hydro button.border-slate-300,
+.hydro a.border-slate-300 {
+  border-radius: 9999px;
+  background: rgba(8, 24, 48, 0.55);
+  border-color: rgba(120, 230, 255, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+.hydro button.border-slate-300:hover:not(:disabled),
+.hydro a.border-slate-300:hover {
+  background: rgba(0, 229, 255, 0.14);
+  border-color: rgba(120, 240, 255, 0.85);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.35), inset 0 0 12px rgba(0, 229, 255, 0.12);
+}
+.hydro button.border-blue-300 { border-radius: 9999px; }
+
+/* small action buttons in table rows (rounded-md text-xs) */
+.hydro td button.rounded-md, .hydro td a.rounded-md { border-radius: 16px; }
+
+/* reconnect (red) button */
+.hydro .bg-red-700 {
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #ff5252, #d32f2f);
+  box-shadow: 0 0 14px rgba(255, 82, 82, 0.5);
+}
+.hydro .hover\:bg-red-800:hover { background: linear-gradient(90deg, #ff6e6e, #e53935); }
+.hydro .hover\:bg-red-50:hover { background-color: rgba(255, 82, 82, 0.16); }
+
+/* ---- Alerts / callouts ------------------------------------------------------------ */
+.hydro .rounded-md.border.px-4.py-3 {
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 20, 40, 0.35);
+}
+.hydro .rounded-md.border.border-amber-200 {
+  background: rgba(60, 40, 20, 0.6);
+  border: 1px solid rgba(255, 170, 0, 0.5);
+  color: #ffd98a;
+}
+.hydro .rounded-md.border.border-amber-200::before { content: "\26A0\FE0E  "; color: #ffc107; }
+
+/* ---- Forms -------------------------------------------------------------------------- */
+.hydro input, .hydro textarea, .hydro select {
+  background-color: rgba(4, 20, 38, 0.6);
+  color: #eaf9ff;
+  border-color: rgba(120, 230, 255, 0.35);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.hydro input::placeholder, .hydro textarea::placeholder { color: rgba(184, 214, 230, 0.5); }
+.hydro input:focus, .hydro textarea:focus, .hydro select:focus {
+  outline: none;
+  border-color: var(--aqua);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.22), 0 0 16px rgba(0, 229, 255, 0.25);
+}
+.hydro select option { background: #06202e; color: #eaf9ff; }
+.hydro input[type="checkbox"], .hydro input[type="radio"] { accent-color: var(--aqua); }
+
+/* ---- Email popup (hover on the Email Verified badge) ---------------------------------- */
+.hydro [data-email-popover] {
+  background: linear-gradient(135deg, rgba(14, 44, 72, 0.96), rgba(4, 18, 36, 0.97));
+  border: 1px solid rgba(120, 230, 255, 0.45);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 24px rgba(0, 229, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.hydro .shadow-lg { box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 24px rgba(0, 229, 255, 0.18); }
+
+/* ---- Misc ------------------------------------------------------------------------------- */
+.hydro hr, .hydro .border-t, .hydro .border-b { border-color: rgba(255, 255, 255, 0.10); }
+.hydro code { color: #8fe9ff; }
+.hydro footer { color: #6e8da0; }
+.hydro ::-webkit-scrollbar { width: 10px; height: 10px; }
+.hydro ::-webkit-scrollbar-thumb { background: rgba(120, 230, 255, 0.28); border-radius: 8px; }
+.hydro ::-webkit-scrollbar-track { background: rgba(0, 20, 40, 0.3); }

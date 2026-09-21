@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import "./hydro-theme.css";
 
 export const metadata: Metadata = {
   title: "obsys",
@@ -17,7 +18,7 @@ const NAV_ITEMS = [
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body className="hydro">
         <div className="min-h-screen">
           <header className="border-b border-slate-200 bg-white">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
