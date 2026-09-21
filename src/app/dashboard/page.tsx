@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Lead = {
   rowNumber: number;
@@ -45,6 +45,12 @@ function mxBadge(mxStatus: string): { label: string; className: string } | null 
 
 const STAGE_ORDER = ["SOURCED", "ENRICHED", "VERIFIED", "OUTREACH", "QA", "DRAFTED"];
 
+// "Run until done" safety limits. A lead needs at most 5 runs to reach DRAFTED and
+// each run handles 10 leads, so 40 rounds covers roughly 80 leads in one click.
+const MAX_ROUNDS = 40;
+const MAX_LOCK_RETRIES = 5;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -56,6 +62,9 @@ export default function DashboardPage() {
   const [gmailDisconnected, setGmailDisconnected] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [looping, setLooping] = useState(false);
+  const [loopStatus, setLoopStatus] = useState<string | null>(null);
+  const stopRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +115,92 @@ export default function DashboardPage() {
     }
   }
 
+  // Reads the lead list without touching the "Loading..." state, so the table
+  // updates in place while the loop runs.
+  async function fetchLeadsData(): Promise<{ leads: Lead[]; counts: Record<string, number> }> {
+    const res = await fetch("/api/leads", { cache: "no-store" });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+    setLeads(data.leads ?? []);
+    setCounts(data.counts ?? {});
+    setConnected(data.connected ?? false);
+    setGmailDisconnected(!!data.gmailDisconnected);
+    return { leads: data.leads ?? [], counts: data.counts ?? {} };
+  }
+
+  // One pipeline run moves each waiting lead a single stage, so this repeats runs
+  // until every lead is DRAFTED, or until a round changes nothing (the remaining
+  // leads are stuck — their Error column says why), or the user presses Stop.
+  async function runUntilDone() {
+    stopRef.current = false;
+    setLooping(true);
+    setRunMessage(null);
+    setActionMessage(null);
+    let summary = "";
+    try {
+      let current = await fetchLeadsData();
+      const isPending = (l: Lead) => l.stage.trim().toUpperCase() !== "DRAFTED";
+      if (current.leads.filter(isPending).length === 0) {
+        summary = "Nothing to run — every lead is already drafted.";
+      } else {
+        const signature = (ls: Lead[]) => ls.map((l) => `${l.rowNumber}:${l.stage}:${l.lastError}`).join("|");
+        let before = signature(current.leads);
+        let round = 0;
+        let lockRetries = 0;
+        while (true) {
+          if (stopRef.current) {
+            summary = "Stopped. Click Run until done to continue.";
+            break;
+          }
+          if (round >= MAX_ROUNDS) {
+            summary = `Paused after ${MAX_ROUNDS} rounds. Click Run until done to continue.`;
+            break;
+          }
+          setLoopStatus(`Round ${round + 1} — ${current.leads.filter(isPending).length} lead(s) still in progress...`);
+          const res = await fetch("/api/pipeline/run-now", { method: "POST" });
+          const text = await res.text();
+          const data = text ? JSON.parse(text) : {};
+          if (data.error) {
+            summary = `Stopped: ${data.error}`;
+            break;
+          }
+          if (data.skipped) {
+            // Another run (for example a scheduler) holds the lock — wait and retry a few times.
+            if (/lock/i.test(data.skipped) && lockRetries < MAX_LOCK_RETRIES) {
+              lockRetries += 1;
+              await sleep(3000);
+              continue;
+            }
+            summary = `Stopped: ${data.skipped}`;
+            break;
+          }
+          lockRetries = 0;
+          round += 1;
+          current = await fetchLeadsData();
+          const pending = current.leads.filter(isPending);
+          if (pending.length === 0) {
+            summary = `Done — all leads are drafted (${round} round${round === 1 ? "" : "s"}).`;
+            break;
+          }
+          const after = signature(current.leads);
+          if (after === before) {
+            summary = `Stopped after ${round} round(s): ${pending.length} lead(s) can't move further — check their Error column.`;
+            break;
+          }
+          before = after;
+          await sleep(400);
+        }
+      }
+    } catch (err: any) {
+      summary = `Stopped: ${err.message ?? "unexpected error"}`;
+    } finally {
+      setLooping(false);
+      setLoopStatus(null);
+      setRunMessage(summary);
+    }
+  }
+
   async function runNow() {
     setRunning(true);
     setRunMessage(null);
@@ -125,16 +220,42 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <button
-          onClick={runNow}
-          disabled={running}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-        >
-          {running ? "Running..." : "Run pipeline now"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={runNow}
+            disabled={running || looping}
+            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+            title="One pipeline step for every waiting lead"
+          >
+            {running ? "Running..." : "Run pipeline now"}
+          </button>
+          <button
+            onClick={runUntilDone}
+            disabled={running || looping}
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+            title="Repeat the pipeline until every lead is drafted"
+          >
+            {looping ? "Running until done..." : "Run until done"}
+          </button>
+        </div>
       </div>
 
-      {runMessage && <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{runMessage}</div>}
+      {looping && loopStatus && (
+        <div className="flex items-center justify-between gap-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <span>{loopStatus}</span>
+          <button
+            onClick={() => {
+              stopRef.current = true;
+              setLoopStatus("Stopping after this round...");
+            }}
+            className="whitespace-nowrap rounded-md border border-blue-300 bg-white px-3 py-1 font-medium text-blue-900 hover:bg-blue-100"
+          >
+            Stop
+          </button>
+        </div>
+      )}
+
+      {runMessage &&<div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{runMessage}</div>}
 
       {actionMessage && (
         <div
@@ -233,7 +354,7 @@ export default function DashboardPage() {
                             <button
                               key={step}
                               onClick={() => draftFollowUp(lead, step, label)}
-                              disabled={busyKey !== null || (!done && !previousDone)}
+                              disabled={busyKey !== null || looping || (!done && !previousDone)}
                               title={
                                 done ? `${label} was drafted — click to re-check its status` : !previousDone ? "Draft the previous follow-up first" : `Draft ${label} in the same Gmail thread`
                               }
