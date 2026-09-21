@@ -5,7 +5,7 @@ import { getActiveTemplate, renderTemplate } from "./templates";
 import { checkSpamSignals } from "./spam-check";
 import { createDraft, updateDraft, getDraft } from "./gmail";
 import { errorMessage } from "./error";
-import { undeliverableSet } from "./verification-store";
+import { normalizeEmail, overallVerdict, parseStore, undeliverableSet } from "./verification-store";
 
 export type StageResult = {
   rowNumber: number;
@@ -13,17 +13,29 @@ export type StageResult = {
 };
 
 // TO is column D; CC is columns E and F, deduped, skipping blanks and the TO.
+// Addresses that ZeroBounce/Hunter/Clay results (dashboard) mark undeliverable are
+// never CC'd. If the TO itself is undeliverable, it is replaced by the first
+// address from E/F that isn't (one that checked out as deliverable is preferred
+// over one that was never checked or came back risky/unknown). If there is no
+// usable replacement, TO stays as it is. The Sheet is never changed.
 export function leadRecipients(lead: LeadRow): { to: string; cc: string | undefined } {
-  const to = lead.officialEmail.trim();
-  // Addresses that ZeroBounce/Hunter/Clay results (dashboard) mark undeliverable are not CC'd.
+  const store = parseStore(lead.emailVerified);
   const undeliverable = undeliverableSet(lead.emailVerified);
-  const ccList = Array.from(
-    new Set(
-      [lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter(
-        (e) => e && e.toLowerCase() !== to.toLowerCase() && !undeliverable.has(e.toLowerCase())
-      )
-    )
+  const isBad = (e: string) => undeliverable.has(e.toLowerCase());
+
+  let to = lead.officialEmail.trim();
+  const others = [lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter(
+    (e, i, all) =>
+      e && e.toLowerCase() !== to.toLowerCase() && all.findIndex((x) => x.toLowerCase() === e.toLowerCase()) === i
   );
+
+  if (to && isBad(to)) {
+    const usable = others.filter((e) => !isBad(e));
+    const replacement = usable.find((e) => overallVerdict(store[normalizeEmail(e)]) === "deliverable") ?? usable[0];
+    if (replacement) to = replacement;
+  }
+
+  const ccList = others.filter((e) => e.toLowerCase() !== to.toLowerCase() && !isBad(e));
   return { to, cc: ccList.length ? ccList.join(", ") : undefined };
 }
 
@@ -227,11 +239,12 @@ async function advanceQA(auth: OAuth2Client, lead: LeadRow): Promise<StageResult
     };
   }
 
-  const toMatches = draft.to.toLowerCase().includes(lead.officialEmail.trim().toLowerCase());
+  // Same recipients the draft was built from (leadRecipients swaps an undeliverable
+  // TO for a usable one and drops undeliverable CCs), so a correct draft never fails QA.
+  const recipients = leadRecipients(lead);
+  const toMatches = draft.to.toLowerCase().includes(recipients.to.toLowerCase());
   const subjectMatches = draft.subject.trim() === subject.trim();
-  // Same list the draft was built from (leadRecipients also drops CC addresses
-  // verified undeliverable), so a correct draft is never failed for omitting them.
-  const expectedCc = (leadRecipients(lead).cc ?? "").split(",").map((e) => e.trim()).filter(Boolean);
+  const expectedCc = (recipients.cc ?? "").split(",").map((e) => e.trim()).filter(Boolean);
   const ccMatches = expectedCc.every((e) => draft.cc.toLowerCase().includes(e.toLowerCase()));
 
   if (toMatches && subjectMatches && ccMatches) {

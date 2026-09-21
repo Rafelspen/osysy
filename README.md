@@ -755,9 +755,15 @@ unknown, then deliverable. The badge shows how many of the lead's addresses are 
 (`2/3 verified`); it is **red** if any address is undeliverable, **green** if all are deliverable, **amber**
 otherwise, and grey **Not checked** before any check.
 
-**What it changes.** Only one thing: an address that is **undeliverable** is left out of the **CC** line when a
-draft is created or updated and when a follow-up is drafted. Drafts that already exist are not touched. Nothing
-else is automatic — a risky or unknown address is never removed for you.
+**What it changes.** Only this, when a draft is created or updated and when a follow-up is drafted:
+- An **undeliverable** address is left out of the **CC** line.
+- If the **TO** address (column D) is undeliverable, it is replaced by the first usable address from column E or F
+  (one that checked out as deliverable is preferred; otherwise the first that isn't undeliverable), and the rest
+  stay in CC. If E and F have nothing usable, TO stays as it is. The Sheet itself is never changed.
+- Drafts that already exist are not touched: to apply new results to one, delete the draft (or set the lead's
+  Stage back to OUTREACH) and run the pipeline.
+
+Nothing else is automatic — a risky or unknown address is never removed or replaced for you.
 
 ### 13.4 Credits
 
