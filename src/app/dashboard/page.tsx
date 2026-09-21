@@ -576,7 +576,7 @@ export default function DashboardPage() {
                           providers={providers}
                           busyKey={verifyBusy}
                           disabled={looping}
-                          onVerify={(l, provider) => (provider === "clay" ? clayCopyAndOpen(l as Lead) : verifySelected(l as Lead, provider))}
+                          onVerify={(l, provider) => (provider === "clay" && providers.find((p) => p.id === "clay")?.kind !== "api" ? clayCopyAndOpen(l as Lead) : verifySelected(l as Lead, provider))}
                         />
                       </>
                     )}

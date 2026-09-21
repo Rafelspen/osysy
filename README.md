@@ -715,16 +715,29 @@ check is running.
 |---|---|---|---|
 | **ZeroBounce** | Automatic (API) | about 100 checks a month (check current terms) | Variable `ZEROBOUNCE_API_KEY` |
 | **Hunter** | Automatic (API) | about 50 checks a month (check current terms) | Variable `HUNTER_API_KEY` |
-| **Clay** | **Manual** — see below | Clay's own credits | Nothing to configure |
+| **Clay** | **Automatic** once set up (Public API), otherwise **manual** | Clay's own credits; API access depends on your Clay plan | Variables `CLAY_API_KEY` + `CLAY_FUNCTION_ID` (optional `CLAY_INPUT_NAME`) |
 
-**Why Clay is manual.** Clay has no "verify this address and answer me" API. It can only receive data through a
-table webhook and send results out through an HTTP action, and Clay's pricing lists **webhooks and HTTP API as
-unavailable on the Free and Launch plans** (they start at the Growth plan). So on a free Clay plan the app cannot
-call it. Instead, the **Clay** button copies the selected addresses and opens Clay in a new tab; you run Clay's
-own email verification there, then choose the result under **Clay result** for that address in the left panel
-(`deliverable`, `risky`, `undeliverable` or `unknown`). It is stored and shown exactly like the other services.
-If you upgrade to a Clay plan with webhooks later, an automatic connection can be added the same way as the
-other two.
+**Clay, automatic mode.** Clay has no ready-made "verify this address" endpoint, so you build one in Clay: a
+Clay **function** that takes an email and runs Clay's email verification, with API access switched on. The app
+starts that function through Clay's Public API (`POST /routines/function:t_…/run`), then collects the result
+(`GET /routines/run/{id}/results`), waiting up to about 45 seconds. Setup, done by the person:
+
+1. In Clay: **Settings → Account → API keys** and create a key. Copy it.
+2. In Clay: **Functions** → create a function with one email input (name it `email`, or set `CLAY_INPUT_NAME`)
+   that verifies the address and outputs the verification result. Open its details, switch on **API access**, and
+   copy its id (looks like `t_abc123`).
+3. In Vercel add `CLAY_API_KEY` and `CLAY_FUNCTION_ID` as **normal** variables and redeploy. `/api/health` then
+   shows Clay with `kind: "api"`.
+4. Test with a made-up address. The answer is read from the function's output (fields such as `email_status`,
+   `status`, `verification_status`, `valid`); only a clearly positive answer is shown as Deliverable. **An answer the
+   app doesn't recognize is shown as Unknown** with Clay's output in the chip tooltip, never as Deliverable. If that
+   happens, the mapping in `interpretClayResult` (`src/lib/email-verifier.ts`) needs one line added for your function.
+
+Each Clay run uses Clay credits, and the API may not be available on every plan — check your Clay account.
+
+**Clay, manual mode (default).** Until both variables are set, the **Clay** button copies the selected addresses
+and opens Clay; you run Clay's verification there, then choose the result under **Clay result** for that address in
+the left panel. It is stored and shown exactly like the other services.
 
 ### 13.3 What the results mean
 
@@ -762,7 +775,7 @@ else is automatic — a risky or unknown address is never removed for you.
 1. Create a free account with ZeroBounce and/or Hunter and copy the API key from its settings page. (The person
    does this and types the key; an agent must not — section 11.1.)
 2. In Vercel → **Settings → Environment Variables**, add for **Production**, as **normal** (not Sensitive) variables:
-   `ZEROBOUNCE_API_KEY` and/or `HUNTER_API_KEY`.
+   `ZEROBOUNCE_API_KEY` and/or `HUNTER_API_KEY` (Clay: see 13.2).
 3. **Redeploy.** Open `$APP/api/health`: under `email_verifiers`, the service should show `configured: true`.
    (The health page reports only whether a key exists, never the key.)
 4. **Test with an address you know is fake** on a real domain, for example `nobody-1234@yourcompany.com`: select

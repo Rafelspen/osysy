@@ -365,7 +365,7 @@ export function VerifyButtons(props: {
           ? `Not set up: add ${info?.envKey ?? "the API key"} in Vercel and redeploy`
           : noSelection
             ? "Select an address first: hover the badge above and click the addresses to check"
-            : id === "clay"
+            : id === "clay" && info?.kind === "manual"
               ? `Copy the ${selectedCount} selected address${selectedCount === 1 ? "" : "es"} and open Clay`
               : `Check the ${selectedCount} selected address${selectedCount === 1 ? "" : "es"} with ${PROVIDER_NAME[id]} (1 credit each)`;
         return (
