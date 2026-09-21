@@ -304,7 +304,7 @@ export default function DashboardPage() {
               <th className="px-4 py-2">Company</th>
               <th className="px-4 py-2">Website</th>
               <th className="px-4 py-2">Stage</th>
-              <th className="min-w-[110px] px-4 py-2">MX</th>
+              <th className="min-w-[110px] whitespace-nowrap px-4 py-2">MX/Domain</th>
               <th className="px-4 py-2">Error</th>
               <th className="min-w-[190px] px-4 py-2">Action</th>
             </tr>
