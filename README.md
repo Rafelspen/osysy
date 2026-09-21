@@ -207,7 +207,7 @@ that everywhere instead.
 | Good for | Running this for your own business | Testing with a personal Gmail, or later selling the app |
 
 If you use a personal `@gmail.com` account, only Option B exists. The steps below cover both; the
-difference is one setting in step 3.
+difference is the Audience choice in Step 3 of 10.2 (plus the test-user step, Step 5).
 
 ### 10.2 Google Cloud Console — from start to finish
 
