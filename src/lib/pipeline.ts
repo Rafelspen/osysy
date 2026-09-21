@@ -5,7 +5,7 @@ import { getActiveTemplate, renderTemplate } from "./templates";
 import { checkSpamSignals } from "./spam-check";
 import { createDraft, updateDraft, getDraft } from "./gmail";
 import { errorMessage } from "./error";
-import { verifyEmails, formatVerification, undeliverableAddresses } from "./email-verifier";
+import { undeliverableSet } from "./verification-store";
 
 export type StageResult = {
   rowNumber: number;
@@ -15,8 +15,8 @@ export type StageResult = {
 // TO is column D; CC is columns E and F, deduped, skipping blanks and the TO.
 export function leadRecipients(lead: LeadRow): { to: string; cc: string | undefined } {
   const to = lead.officialEmail.trim();
-  // Addresses an email verifier (if one is configured) reported undeliverable are not CC'd.
-  const undeliverable = undeliverableAddresses(lead.emailVerified);
+  // Addresses that ZeroBounce/Hunter/Clay results (dashboard) mark undeliverable are not CC'd.
+  const undeliverable = undeliverableSet(lead.emailVerified);
   const ccList = Array.from(
     new Set(
       [lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter(
@@ -93,30 +93,18 @@ async function advanceSourced(lead: LeadRow): Promise<StageResult> {
 async function advanceEnriched(lead: LeadRow): Promise<StageResult> {
   const candidates = [lead.officialEmail, lead.secondaryEmail, lead.anotherEmail].filter((e) => e.trim());
 
-  // Optional mailbox verification. `verification` is null when no verifier is
-  // configured, and then nothing below differs from before. Only addresses the
-  // service calls *undeliverable* are ruled out; unclear answers are let through.
-  const verification = await verifyEmails(candidates.filter((e) => isPlausibleEmail(e)));
-  const emailVerified = verification ? formatVerification(verification) : undefined;
-  const isUndeliverable = (e: string) => verification?.verdicts[e.trim().toLowerCase()] === "undeliverable";
-  const eligible = candidates.filter((e) => !isUndeliverable(e));
-
   // Prefer an email whose domain matches the website; otherwise fall back to
   // any plausibly real address found on the site (see the domain-mismatch
   // warning below — it's a judgment call a human can still verify).
-  const domainMatch = eligible.find((e) => isEmailUsableForDomain(e, lead.websiteUrl));
-  const looseMatch = domainMatch ? undefined : eligible.find((e) => isPlausibleEmail(e));
+  const domainMatch = candidates.find((e) => isEmailUsableForDomain(e, lead.websiteUrl));
+  const looseMatch = domainMatch ? undefined : candidates.find((e) => isPlausibleEmail(e));
   const chosen = domainMatch ?? looseMatch;
 
   if (!chosen) {
-    const allUndeliverable = candidates.length > 0 && eligible.length === 0;
-    const updates: StageResult["updates"] = {
-      lastError: allUndeliverable
-        ? "every address was reported undeliverable by the email verifier"
-        : "no usable TO address (invalid format or placeholder)",
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { lastError: "no usable TO address (invalid format or placeholder)" },
     };
-    if (emailVerified !== undefined) updates.emailVerified = emailVerified;
-    return { rowNumber: lead.rowNumber, updates };
   }
 
   // Check every candidate address found (not just the chosen TO), deduped by
@@ -134,7 +122,6 @@ async function advanceEnriched(lead: LeadRow): Promise<StageResult> {
       lastError: `${chosen} domain has no mail servers configured (no MX/A records) — likely undeliverable`,
       mxStatus,
     };
-    if (emailVerified !== undefined) updates.emailVerified = emailVerified;
     if (chosen !== lead.officialEmail) updates.officialEmail = chosen;
     return { rowNumber: lead.rowNumber, updates };
   }
@@ -144,7 +131,6 @@ async function advanceEnriched(lead: LeadRow): Promise<StageResult> {
     lastError: domainMatch ? "" : `domain mismatch warning: ${chosen} does not match website domain — verify before sending`,
     mxStatus,
   };
-  if (emailVerified !== undefined) updates.emailVerified = emailVerified;
   if (chosen !== lead.officialEmail) updates.officialEmail = chosen;
   return { rowNumber: lead.rowNumber, updates };
 }
@@ -243,9 +229,9 @@ async function advanceQA(auth: OAuth2Client, lead: LeadRow): Promise<StageResult
 
   const toMatches = draft.to.toLowerCase().includes(lead.officialEmail.trim().toLowerCase());
   const subjectMatches = draft.subject.trim() === subject.trim();
-  const expectedCc = [lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter(
-    (e) => e && e.toLowerCase() !== lead.officialEmail.trim().toLowerCase()
-  );
+  // Same list the draft was built from (leadRecipients also drops CC addresses
+  // verified undeliverable), so a correct draft is never failed for omitting them.
+  const expectedCc = (leadRecipients(lead).cc ?? "").split(",").map((e) => e.trim()).filter(Boolean);
   const ccMatches = expectedCc.every((e) => draft.cc.toLowerCase().includes(e.toLowerCase()));
 
   if (toMatches && subjectMatches && ccMatches) {

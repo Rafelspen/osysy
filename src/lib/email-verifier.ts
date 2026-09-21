@@ -1,90 +1,161 @@
-// Pluggable mailbox verification ("does this exact address exist?").
+// Mailbox verification services. ZeroBounce and Hunter are called through their
+// APIs; Clay has no API on its free plan (webhooks and HTTP API start at its
+// Growth plan), so it is "manual": the person runs the check in Clay's own site
+// and records the result in the dashboard.
 //
-// The free MX/domain check only proves a domain can receive mail. A verification
-// service answers per address. This file is the socket: it normalizes every
-// service's answer to one of four verdicts and does the timeout/parallel work,
-// so adding a service later means writing one small adapter and registering it
-// (see README, "Adding an email verifier").
-//
-// With no provider configured, everything here is inert: verifyEmails() returns
-// null and the pipeline behaves exactly as before.
+// Adding another API service = one entry in `API_PROVIDERS` plus a mapping
+// function below. API keys come from environment variables and never leave the
+// server; they are never included in an error message.
 
-export type Verdict = "deliverable" | "undeliverable" | "risky" | "unknown";
+import type { ProviderId, Verdict } from "./verification-store";
 
-export interface EmailVerifierProvider {
-  // Ask the service about one address and map its answer to a Verdict.
-  // Throw on network/API errors — the caller treats a throw as "unknown".
-  verify(email: string, apiKey: string, signal: AbortSignal): Promise<Verdict>;
+export type ApiProviderId = "zerobounce" | "hunter";
+export type ProviderKind = "api" | "manual";
+export type ProviderStatus = { id: ProviderId; label: string; kind: ProviderKind; configured: boolean; envKey?: string };
+
+export type ProviderResult = { verdict: Verdict; raw: string };
+
+export type VerifierErrorCode = "auth" | "credits" | "rate" | "pending" | "network" | "bad_response" | "bad_request";
+
+export class VerifierError extends Error {
+  constructor(public code: VerifierErrorCode, message: string) {
+    super(message);
+    this.name = "VerifierError";
+  }
 }
 
-// Register providers here, keyed by the value of EMAIL_VERIFIER_PROVIDER.
-// Empty until a service is chosen.
-const PROVIDERS: Record<string, EmailVerifierProvider> = {};
+type FetchLike = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal }) => Promise<Response>;
 
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 25_000;
 
-export type VerifierConfig = { configured: boolean; provider: string | null; reason?: string };
-
-export function getVerifierConfig(): VerifierConfig {
-  const name = process.env.EMAIL_VERIFIER_PROVIDER?.trim().toLowerCase();
-  const key = process.env.EMAIL_VERIFIER_API_KEY?.trim();
-  if (!name) return { configured: false, provider: null };
-  if (!PROVIDERS[name]) return { configured: false, provider: name, reason: "unknown provider (no adapter registered)" };
-  if (!key) return { configured: false, provider: name, reason: "EMAIL_VERIFIER_API_KEY is missing" };
-  return { configured: true, provider: name };
-}
-
-export type VerificationResult = {
-  verdicts: Record<string, Verdict>; // keyed by lower-cased address
-  deliverable: number;
-  total: number;
+const META: Record<ProviderId, { label: string; kind: ProviderKind; envKey?: string }> = {
+  zerobounce: { label: "ZeroBounce", kind: "api", envKey: "ZEROBOUNCE_API_KEY" },
+  hunter: { label: "Hunter", kind: "api", envKey: "HUNTER_API_KEY" },
+  clay: { label: "Clay", kind: "manual" },
 };
 
-// Verifies each unique address (in parallel). Returns null when no provider is
-// configured. A failed or timed-out lookup is "unknown" and never blocks anything.
-export async function verifyEmails(emails: string[]): Promise<VerificationResult | null> {
-  const config = getVerifierConfig();
-  if (!config.configured || !config.provider) return null;
-  const provider = PROVIDERS[config.provider];
-  const apiKey = process.env.EMAIL_VERIFIER_API_KEY!.trim();
-
-  const unique = Array.from(new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean)));
-  const entries = await Promise.all(
-    unique.map(async (email) => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      try {
-        return [email, await provider.verify(email, apiKey, controller.signal)] as const;
-      } catch {
-        return [email, "unknown" as Verdict] as const;
-      } finally {
-        clearTimeout(timer);
-      }
-    })
-  );
-
-  const verdicts = Object.fromEntries(entries) as Record<string, Verdict>;
-  return {
-    verdicts,
-    deliverable: entries.filter(([, v]) => v === "deliverable").length,
-    total: entries.length,
-  };
+export function isApiProvider(id: string): id is ApiProviderId {
+  return id === "zerobounce" || id === "hunter";
 }
 
-// Stored in the sheet's email_verified cell, e.g.
-//   "2/3 deliverable · bad@x.com: undeliverable"
-// Only addresses that are NOT deliverable are listed after the dot.
-export function formatVerification(result: VerificationResult): string {
-  const problems = Object.entries(result.verdicts)
-    .filter(([, v]) => v !== "deliverable")
-    .map(([email, v]) => `${email}: ${v}`);
-  const base = `${result.deliverable}/${result.total} deliverable`;
-  return problems.length ? `${base} · ${problems.join(", ")}` : base;
+export function isManualProvider(id: string): id is "clay" {
+  return id === "clay";
 }
 
-// Addresses the verifier reported undeliverable, read back from the cell text.
-export function undeliverableAddresses(cell: string): Set<string> {
-  const out = new Set<string>();
-  for (const m of cell.matchAll(/([^\s,·:]+@[^\s,·:]+):\s*undeliverable/gi)) out.add(m[1].toLowerCase());
-  return out;
+function apiKeyFor(id: ApiProviderId): string {
+  return (process.env[META[id].envKey!] ?? "").trim();
+}
+
+// For the dashboard and /api/health. Reports only whether a key exists — never the key.
+export function providerStatuses(): ProviderStatus[] {
+  return (Object.keys(META) as ProviderId[]).map((id) => ({
+    id,
+    label: META[id].label,
+    kind: META[id].kind,
+    configured: META[id].kind === "manual" ? true : !!apiKeyFor(id as ApiProviderId),
+    ...(META[id].envKey ? { envKey: META[id].envKey } : {}),
+  }));
+}
+
+export function providerLabel(id: ProviderId): string {
+  return META[id].label;
+}
+
+async function requestJson(
+  fetchImpl: FetchLike,
+  url: string,
+  headers: Record<string, string> | undefined,
+  label: string
+): Promise<{ status: number; data: any }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetchImpl(url, { headers, signal: controller.signal });
+    const text = await res.text();
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = null;
+    }
+    return { status: res.status, data };
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw new VerifierError("network", `${label} took too long to answer — try again.`);
+    throw new VerifierError("network", `Couldn't reach ${label} — try again.`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---- ZeroBounce -----------------------------------------------------------
+
+const ZEROBOUNCE_VERDICT: Record<string, Verdict> = {
+  valid: "deliverable",
+  invalid: "undeliverable",
+  "catch-all": "risky",
+  unknown: "unknown",
+  abuse: "risky",
+  do_not_mail: "risky",
+  spamtrap: "undeliverable", // never email a suspected spam trap
+};
+
+async function verifyZeroBounce(email: string, apiKey: string, fetchImpl: FetchLike): Promise<ProviderResult> {
+  const url = new URL("https://api.zerobounce.net/v2/validate");
+  url.searchParams.set("api_key", apiKey);
+  url.searchParams.set("email", email);
+  url.searchParams.set("timeout", "15");
+
+  const { status, data } = await requestJson(fetchImpl, url.toString(), undefined, "ZeroBounce");
+  if (status === 401 || status === 403) throw new VerifierError("auth", "ZeroBounce rejected the API key.");
+  if (status === 429) throw new VerifierError("rate", "ZeroBounce is rate-limiting requests — wait a moment and try again.");
+  if (!data || typeof data !== "object") throw new VerifierError("bad_response", "ZeroBounce sent an answer the app couldn't read.");
+  if (data.error) {
+    // ZeroBounce uses one message for both cases.
+    throw new VerifierError("credits", "ZeroBounce refused the request: the API key is invalid or the monthly credits are used up.");
+  }
+  const raw = String(data.status ?? "").trim().toLowerCase();
+  const verdict = ZEROBOUNCE_VERDICT[raw];
+  if (!verdict) throw new VerifierError("bad_response", `ZeroBounce returned an unfamiliar status ("${raw || "empty"}").`);
+  const sub = String(data.sub_status ?? "").trim();
+  return { verdict, raw: sub ? `${raw} (${sub})` : raw };
+}
+
+// ---- Hunter ---------------------------------------------------------------
+
+const HUNTER_VERDICT: Record<string, Verdict> = {
+  valid: "deliverable",
+  invalid: "undeliverable",
+  accept_all: "risky",
+  disposable: "risky",
+  webmail: "unknown", // a webmail address (Gmail etc.) can't be confirmed
+  unknown: "unknown",
+};
+
+async function verifyHunter(email: string, apiKey: string, fetchImpl: FetchLike): Promise<ProviderResult> {
+  const url = `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}`;
+  const { status, data } = await requestJson(fetchImpl, url, { "X-API-KEY": apiKey }, "Hunter");
+  if (status === 202) throw new VerifierError("pending", "Hunter is still verifying this address — try again in a minute.");
+  if (status === 401) throw new VerifierError("auth", "Hunter rejected the API key.");
+  if (status === 403) throw new VerifierError("rate", "Hunter is rate-limiting requests — wait a moment and try again.");
+  if (status === 429) throw new VerifierError("credits", "Hunter says the monthly verification limit is used up.");
+  if (status === 400) throw new VerifierError("bad_request", "Hunter didn't accept that address.");
+  if (status === 222) return { verdict: "unknown", raw: "unexpected response from the mail server" };
+  if (status !== 200) throw new VerifierError("bad_response", `Hunter returned an unexpected HTTP status (${status}).`);
+  const raw = String(data?.data?.status ?? "").trim().toLowerCase();
+  const verdict = HUNTER_VERDICT[raw];
+  if (!verdict) throw new VerifierError("bad_response", `Hunter returned an unfamiliar status ("${raw || "empty"}").`);
+  return { verdict, raw };
+}
+
+// ---- entry point -----------------------------------------------------------
+
+export async function verifyWithProvider(
+  id: ApiProviderId,
+  email: string,
+  fetchImpl: FetchLike = fetch as unknown as FetchLike,
+  apiKeyOverride?: string
+): Promise<ProviderResult> {
+  const apiKey = apiKeyOverride ?? apiKeyFor(id);
+  if (!apiKey) throw new VerifierError("auth", `${META[id].label} isn't set up: add ${META[id].envKey} in Vercel and redeploy.`);
+  return id === "zerobounce" ? verifyZeroBounce(email, apiKey, fetchImpl) : verifyHunter(email, apiKey, fetchImpl);
 }

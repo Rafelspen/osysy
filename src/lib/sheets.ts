@@ -21,7 +21,7 @@ export type LeadRow = {
   followup1DraftId: string;
   followup2DraftId: string;
   followup3DraftId: string;
-  emailVerified: string; // "" | "X/Y deliverable · addr: verdict, ..." (from the optional verifier)
+  emailVerified: string; // JSON of per-address results from ZeroBounce/Hunter/Clay — see verification-store.ts
 };
 
 const HEADER = [
@@ -101,6 +101,13 @@ export async function ensureHeaders(auth: OAuth2Client, sheetId: string): Promis
     spreadsheetId: sheetId,
     requestBody: { valueInputOption: "RAW", data },
   });
+}
+
+// Reads one cell fresh (used right before writing a merged value back, so two quick
+// edits to the same row don't overwrite each other).
+export async function readCell(auth: OAuth2Client, sheetId: string, a1: string): Promise<string> {
+  const res = await client(auth).spreadsheets.values.get({ spreadsheetId: sheetId, range: a1 });
+  return String(res.data.values?.[0]?.[0] ?? "");
 }
 
 export async function readLeadRows(auth: OAuth2Client, sheetId: string): Promise<LeadRow[]> {

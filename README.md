@@ -185,7 +185,7 @@ Columns A–P, header row required, exact order:
 | M | followup_1_draft_id | Dashboard button "Follow-up 1" — dedup key |
 | N | followup_2_draft_id | Dashboard button "Follow-up 2" — dedup key |
 | O | followup_3_draft_id | Dashboard button "Final follow-up" — dedup key |
-| P | email_verified | Pipeline (ENRICHED), only when an email verifier is connected (section 13) — e.g. `2/3 deliverable · bad@x.com: undeliverable` |
+| P | email_verified | Dashboard verification buttons (section 13) — JSON of per-address results from ZeroBounce / Hunter / Clay |
 
 If you connected your Sheet before these columns existed, add the header `mx_status` to K1 yourself — the pipeline writes to K regardless, but the column won't have a label until you add it. Headers L1:O1 are filled in automatically the first time a follow-up button is used, if all four are empty.
 
@@ -686,69 +686,109 @@ Rules:
 | `cron_looks_alive` | `true` if a run happened in the last 15 minutes; `null` until Gmail and the Sheet are connected; `false` means the GitHub schedule is not firing |
 | `version` | The commit this deployment was built from |
 
-## 13. Adding an email verifier (mailbox-level checks)
+## 13. Email verification (ZeroBounce, Hunter, Clay)
 
-**What exists today.** The **MX/Domain** column only proves that an address's *domain* can receive mail. It cannot
-tell a real mailbox from a made-up one at the same domain (`design@yourcompany.com` passes even if nobody has that
-address). Confirming a *mailbox* needs an outside verification service, because a hosting platform like Vercel
-cannot open the mail-server connection needed to check it itself.
+**Two different questions.** The **MX/Domain** column only proves an address's *domain* can receive mail. It cannot
+tell a real mailbox from a made-up one at the same domain. The **Email Verified** column answers the second
+question — "does this exact mailbox exist?" — by asking a verification service. That has to be an outside
+service, because a hosting platform like Vercel cannot make the mail-server connection needed to check it.
 
-**What is built.** The socket for it is already in place; no service is plugged in yet:
+**Nothing is checked automatically.** The pipeline never spends verification credits. You choose which addresses
+to check, and with which service, from the dashboard — so the free monthly credits go where you want them.
 
-- The dashboard has an **Email Verified** column (between MX/Domain and Error). Until a service is connected it
-  shows a grey **Not set up**.
-- `src/lib/email-verifier.ts` normalizes every service's answer to one of four verdicts —
-  `deliverable`, `undeliverable`, `risky` (for example a catch-all domain) or `unknown` — and handles timeouts and
-  parallel lookups.
-- The result is stored in the Sheet column `email_verified` (column P) as, for example,
-  `2/3 deliverable · bad@x.com: undeliverable`. The dashboard shows it as `2/3 verified`, coloured green (all),
-  amber (some) or red (none); hover for the detail.
-- `/api/health` reports `email_verifier: { configured, provider }`.
+### 13.1 Using it
 
-**What it does once a service is connected** (nothing changes before that):
+1. **Hover** the badge in a lead's **Email Verified** column (or click it). A popup lists that lead's addresses.
+2. **Click an address** to select it. Selected addresses appear in the **Selected emails** panel on the left of
+   the dashboard (it also remembers your selection if you reload the page).
+3. In the same row, click **ZeroBounce**, **Hunter** or **Clay**. That service checks the lead's selected addresses.
+4. The result shows immediately: on the badge (for example `2/3 verified`, green / amber / red), in the popup, and
+   as small chips (`ZB`, `H`, `Clay`) next to each address in the panel — hover a chip for the service's exact
+   wording and the time.
 
-| Verdict | Effect |
-|---|---|
-| `undeliverable` | That address is never chosen as TO (the next best address is used instead) and is left out of CC. If **every** address is undeliverable the lead stays at `ENRICHED` with a clear error. |
-| `risky` / `unknown` | Let through and shown in the column. A failed or timed-out lookup is `unknown` — it never blocks a lead. |
-| `deliverable` | Counted as verified. |
+The buttons are greyed out with an explanation when: no address is selected, the service isn't set up, or another
+check is running.
 
-Addresses are checked once per lead, at the `ENRICHED` stage, up to three per lead (the To and the two CC slots).
-Most services charge per address checked, so a lead with three addresses costs three checks; some offer a small
-free monthly allowance — check the current pricing of the service you choose.
+### 13.2 The three services
 
-### 13.1 Steps to connect a service
+| Service | How it runs | Free allowance | Setup |
+|---|---|---|---|
+| **ZeroBounce** | Automatic (API) | about 100 checks a month (check current terms) | Variable `ZEROBOUNCE_API_KEY` |
+| **Hunter** | Automatic (API) | about 50 checks a month (check current terms) | Variable `HUNTER_API_KEY` |
+| **Clay** | **Manual** — see below | Clay's own credits | Nothing to configure |
 
-1. **Choose a service and create an account** (the person does this). Note its API-key page.
-2. **Add an adapter** — a small object with one `verify` function — to `src/lib/email-verifier.ts` and register it
-   in the `PROVIDERS` table under a short name. Template:
+**Why Clay is manual.** Clay has no "verify this address and answer me" API. It can only receive data through a
+table webhook and send results out through an HTTP action, and Clay's pricing lists **webhooks and HTTP API as
+unavailable on the Free and Launch plans** (they start at the Growth plan). So on a free Clay plan the app cannot
+call it. Instead, the **Clay** button copies the selected addresses and opens Clay in a new tab; you run Clay's
+own email verification there, then choose the result under **Clay result** for that address in the left panel
+(`deliverable`, `risky`, `undeliverable` or `unknown`). It is stored and shown exactly like the other services.
+If you upgrade to a Clay plan with webhooks later, an automatic connection can be added the same way as the
+other two.
 
-   ```ts
-   const myservice: EmailVerifierProvider = {
-     async verify(email, apiKey, signal) {
-       const res = await fetch(
-         `https://api.example.com/verify?email=${encodeURIComponent(email)}&api_key=${encodeURIComponent(apiKey)}`,
-         { signal }
-       );
-       if (!res.ok) throw new Error(`verifier HTTP ${res.status}`); // becomes "unknown"
-       const data = await res.json();
-       // Map the service's own words to our four verdicts:
-       if (data.status === "valid") return "deliverable";
-       if (data.status === "invalid") return "undeliverable";
-       if (data.status === "catch-all" || data.status === "risky") return "risky";
-       return "unknown";
-     },
-   };
-   const PROVIDERS: Record<string, EmailVerifierProvider> = { myservice };
-   ```
-   The status words above are only an example — use the ones from the service's documentation.
-3. **Set two Vercel variables** for Production, as normal (not Sensitive) variables — the person types the key:
-   - `EMAIL_VERIFIER_PROVIDER` = the short name you registered (for example `myservice`)
-   - `EMAIL_VERIFIER_API_KEY` = the service's API key
-4. **Redeploy**, then open `$APP/api/health`: `email_verifier.configured` must be `true`. If it says
-   `false`, the `reason` field tells you why (unknown provider name, or missing key).
-5. **Test with an address you know is fake** on a real domain. On the next run of a fresh lead, the
-   **Email Verified** column should show it as not verified, and it should not become the TO address.
+### 13.3 What the results mean
 
-A person adding this with an AI agent: the agent may write the adapter and open the health page, but the
-person creates the account and types `EMAIL_VERIFIER_API_KEY` (section 11.1).
+Each service's own answer is turned into one of four results, and the original wording is kept in the chip's tooltip.
+
+| Result | ZeroBounce says | Hunter says |
+|---|---|---|
+| **Deliverable** | `valid` | `valid` |
+| **Undeliverable** | `invalid`, `spamtrap` | `invalid` |
+| **Risky** | `catch-all`, `abuse`, `do_not_mail` | `accept_all`, `disposable` |
+| **Unknown** | `unknown` | `unknown`, `webmail`, or an unclear mail-server answer |
+
+When several services checked the same address, the **safest answer wins**: undeliverable, then risky, then
+unknown, then deliverable. The badge shows how many of the lead's addresses are deliverable
+(`2/3 verified`); it is **red** if any address is undeliverable, **green** if all are deliverable, **amber**
+otherwise, and grey **Not checked** before any check.
+
+**What it changes.** Only one thing: an address that is **undeliverable** is left out of the **CC** line when a
+draft is created or updated and when a follow-up is drafted. Drafts that already exist are not touched. Nothing
+else is automatic — a risky or unknown address is never removed for you.
+
+### 13.4 Credits
+
+- Each ZeroBounce or Hunter check uses about **one credit per address** (ZeroBounce does not charge for
+  `unknown` results).
+- An address a service has already checked is **never checked again by that service** — the saved result is used and
+  no credit is spent. To check it again, use **reset results** under that address in the left panel (or
+  reset it in the Sheet).
+- At most 3 addresses are checked per click, and only addresses that belong to that lead.
+- If a service runs out of credits or rejects the key, you get a clear message and nothing is saved for the
+  failed addresses; successful ones are still saved.
+
+### 13.5 Setting it up
+
+1. Create a free account with ZeroBounce and/or Hunter and copy the API key from its settings page. (The person
+   does this and types the key; an agent must not — section 11.1.)
+2. In Vercel → **Settings → Environment Variables**, add for **Production**, as **normal** (not Sensitive) variables:
+   `ZEROBOUNCE_API_KEY` and/or `HUNTER_API_KEY`.
+3. **Redeploy.** Open `$APP/api/health`: under `email_verifiers`, the service should show `configured: true`.
+   (The health page reports only whether a key exists, never the key.)
+4. **Test with an address you know is fake** on a real domain, for example `nobody-1234@yourcompany.com`: select
+   it, click the service button, and confirm the result is `Undeliverable`.
+
+### 13.6 How results are stored
+
+Results live in the Sheet, in column **P** (`email_verified`), as JSON keyed by lower-case address, for example
+`{"a@x.com":{"hunter":{"v":"deliverable","raw":"valid","t":"2026-09-22T10:00:00.000Z"}}}`. The app manages this
+cell — edit it by hand only to delete results (an unreadable cell is treated as "nothing checked", never as an
+error). Because the results are in the Sheet, every browser sees the same badge, and the Sheet remains the source
+of truth.
+
+### 13.7 Safety notes
+
+- These buttons **spend your credits**, and — like the rest of this app — the dashboard has no login. The check
+  endpoint therefore refuses cross-site requests, refuses any address that isn't on that lead, limits each request
+  to 3 addresses, and skips addresses a service already checked, so the most an outsider could spend is one credit
+  per distinct address already in your Sheet. Add a login before the app is public.
+- API keys stay on the server and are never put in messages, logs or the health page.
+
+### 13.8 Adding another API service (for developers)
+
+`src/lib/email-verifier.ts` holds one small function per service that calls the service and maps its answer to
+`deliverable` / `undeliverable` / `risky` / `unknown` (see `verifyZeroBounce` and `verifyHunter`), plus the
+service's entry in `META` (label, environment variable name). Add the service's id to `ProviderId` and
+`PROVIDER_IDS` in `src/lib/verification-store.ts`, add its short chip label in
+`src/app/dashboard/verification.tsx`, and extend `isApiProvider`. Every failure must be thrown as a `VerifierError`
+with a message that never contains the key.
