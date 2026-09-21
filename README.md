@@ -209,31 +209,124 @@ that everywhere instead.
 If you use a personal `@gmail.com` account, only Option B exists. The steps below cover both; the
 difference is one setting in step 3.
 
-### 10.2 Google Cloud Console
+### 10.2 Google Cloud Console — from start to finish
 
-Do this signed in as the account that will own the project (for Option A, your business admin account).
+Google renames and rearranges console screens from time to time. If a label below differs slightly,
+look for the closest match; the order of the steps stays the same.
 
-1. Open [console.cloud.google.com](https://console.cloud.google.com) and create a project (name it `obsys`).
-   For **Option A**, check that the *Location / Organization* on the create screen is your organization
-   (e.g. `sesinf.net`), not "No organization".
-2. **APIs & Services → Library**: enable **Gmail API** and **Google Sheets API**.
-3. Open **Google Auth Platform** (older UI: *OAuth consent screen*):
-   - **Audience / User type**: pick **Internal** (Option A) or **External** (Option B). If *Internal* is
-     greyed out, the project is not inside your organization — create it again under the organization.
-   - **Option B only**: under *Test users* add the exact Google address you will connect
-     (for example `rafael@sesinf.net`). Keep publishing status on **Testing**.
-   - **Branding**: app name `obsys`, and your support email. Leave the home page, privacy and terms link
-     fields empty unless you are submitting for verification (Google can only verify domains you own, not
-     `vercel.app` addresses).
-4. **Data Access → Add or remove scopes**: add all three, then save:
-   - `https://www.googleapis.com/auth/gmail.compose`
-   - `https://www.googleapis.com/auth/gmail.readonly`
-   - `https://www.googleapis.com/auth/spreadsheets`
-5. **Clients → Create client** (older UI: *Credentials → Create credentials → OAuth client ID*):
-   - Application type: **Web application**
-   - **Authorized redirect URI**: `https://obsys-silk.vercel.app/api/oauth/google/callback`
-     (exact match, no trailing slash). For local development also add `http://localhost:3000/api/oauth/google/callback`.
-   - Copy the **Client ID** and **Client secret**.
+**Before you start**
+
+- Open a **private/incognito window** and sign in **only** with the business account that will own the
+  project (for example `rafael@sesinf.net`). Being signed in to several Google accounts at once is the most
+  common cause of "wrong project" and "access denied" surprises.
+- The first time you open the console it asks you to accept the Terms of Service. Accept, choose your
+  country, and continue.
+- Have these ready: the production address `https://obsys-silk.vercel.app` (you are keeping the
+  `vercel.app` address, so nothing needs to be bought or registered) and the email address that will connect.
+
+**Step 1 — Create the project**
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com).
+2. Click the project picker at the top (it may say "Select a project"), then **New project**.
+3. **Project name**: `obsys`.
+4. **Location / Organization**: this is the important field.
+   - **Option A (Internal):** it must show your organization, for example `sesinf.net`. Google creates
+     that organization automatically the first time a Workspace admin signs in to the console. If the field
+     only offers "No organization", Internal is not possible for this account — use Option B instead.
+   - **Option B (External):** any location works.
+5. Click **Create**, wait a few seconds, then make sure the project picker at the top now shows `obsys`.
+   Every step below must happen inside this project.
+
+**Step 2 — Turn on the two APIs**
+
+1. Menu (three lines, top left) → **APIs & Services → Library**.
+2. Search for **Gmail API**, open it, click **Enable**.
+3. Go back to the Library, search for **Google Sheets API**, open it, click **Enable**.
+4. Check: **APIs & Services → Enabled APIs & services** lists both.
+
+**Step 3 — Set up the consent screen ("Google Auth Platform")**
+
+1. Menu → **Google Auth Platform** (or type it into the search bar at the top). If it shows a
+   **Get started** button, click it and go through the four screens:
+   1. **App information** — App name: `obsys`. User support email: pick your address. **Next**.
+   2. **Audience** — choose **Internal** (Option A) or **External** (Option B). **Next**.
+      If **Internal** is greyed out, the project is not inside your organization; go back to Step 1 and create
+      it under the organization.
+   3. **Contact information** — your email address (Google sends notices here). **Next**.
+   4. **Finish** — tick the box agreeing to the Google API Services User Data Policy, then **Continue**
+      and **Create**.
+2. You now see a left-hand menu with **Overview, Branding, Audience, Clients, Data Access** (and possibly
+   **Verification Center**). The next steps use those pages.
+
+**Step 4 — Branding (optional)**
+
+Open **Branding**. The app name and support email are already filled in. **Leave the home page, privacy
+policy and terms of service links empty.** Those links are only needed for Google's verification, and
+Google can only verify a domain you own — it cannot verify a `vercel.app` address. An Internal app needs no
+verification, and an External test-mode app does not need it either. Do not add any "Authorized domains".
+
+**Step 5 — Option B only: add yourself as a test user**
+
+1. Open **Audience**.
+2. Confirm **Publishing status** says **Testing**. Leave it there.
+3. Under **Test users**, click **Add users**, enter the exact address you will connect
+   (for example `rafael@sesinf.net`), and **Save**.
+
+Skip this step for Option A (Internal): everyone in your organization can connect and there is no test-user list.
+
+**Step 6 — Add the three permissions (scopes)**
+
+1. Open **Data Access** and click **Add or remove scopes**.
+2. In the panel, use **Manually add scopes** (a text box near the bottom) and paste these three, one per
+   line:
+   ```
+   https://www.googleapis.com/auth/gmail.compose
+   https://www.googleapis.com/auth/gmail.readonly
+   https://www.googleapis.com/auth/spreadsheets
+   ```
+3. Click **Add to table**, confirm all three appear in the table, then **Update** and finally **Save**.
+4. Google marks the Gmail scopes as "restricted" and the Sheets scope as "sensitive". That is expected. It
+   only matters for verification (needed when publishing an External app to other people); an Internal app
+   is not verified.
+
+What each one is used for: `gmail.compose` creates and updates your drafts; `gmail.readonly` is used only
+to read the headers and labels of the one thread each lead's outreach lives in, so follow-ups land in the
+same thread; `spreadsheets` reads and writes your lead Sheet.
+
+**Step 7 — Create the OAuth client (this produces the Client ID and secret)**
+
+1. Open **Clients** and click **Create client**.
+2. **Application type**: **Web application**. **Name**: `obsys web`.
+3. **Authorized JavaScript origins**: leave empty.
+4. **Authorized redirect URIs**: click **Add URI** and paste exactly:
+   ```
+   https://obsys-silk.vercel.app/api/oauth/google/callback
+   ```
+   It must match character for character — `https`, no trailing slash, no spaces. (For local development
+   you can add a second URI, `http://localhost:3000/api/oauth/google/callback`.)
+5. Click **Create**. A window shows the **Client ID** and the **Client secret**.
+6. **Copy both now, or click Download JSON.** Google may not show the secret again later. If you lose it,
+   open the client and add a new secret.
+7. Keep the secret private. It goes only into Vercel (Step 8) — do not paste it into chat, email, a
+   document, or the code.
+
+**Step 8 — Put the credentials into Vercel**
+
+Follow section 10.4 (the Client ID, the Client secret, and the redirect URI from Step 7, then redeploy).
+
+**Step 9 — Checklist before connecting**
+
+- [ ] Project `obsys` is selected and, for Option A, sits under your organization.
+- [ ] Gmail API and Google Sheets API both show as enabled.
+- [ ] Audience is **Internal** (Option A), or **External + Testing with your address as a test user** (Option B).
+- [ ] Data Access lists all three scopes.
+- [ ] The OAuth client's redirect URI is exactly `https://obsys-silk.vercel.app/api/oauth/google/callback`.
+- [ ] `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` are set in Vercel for Production and
+      the site was redeployed.
+
+**If the address ever changes.** The redirect URI must equal the address you open the app at. If Vercel
+gives you a different address later, update it in three places: the OAuth client's redirect URI (Step 7),
+`GOOGLE_REDIRECT_URI` in Vercel, and redeploy. Until you do, Google shows `redirect_uri_mismatch`.
 
 ### 10.3 Workspace admin console (Workspace accounts only)
 
@@ -242,7 +335,7 @@ organization restricts third-party apps:
 
 1. [admin.google.com](https://admin.google.com) → **Security → Access and data control → API controls**.
 2. **App access control → Manage Third-Party App Access → Add app → OAuth App Name Or Client ID**.
-3. Paste the Client ID from step 5, choose it, and set access to **Trusted**.
+3. Paste the Client ID from Step 7 of 10.2, choose it, and set access to **Trusted**.
 
 ### 10.4 Vercel environment variables
 
@@ -252,9 +345,9 @@ during setup):
 
 | Variable | Value |
 |---|---|
-| `GOOGLE_CLIENT_ID` | Client ID from step 5 |
-| `GOOGLE_CLIENT_SECRET` | Client secret from step 5 |
-| `GOOGLE_REDIRECT_URI` | `https://obsys-silk.vercel.app/api/oauth/google/callback` (same as step 5) |
+| `GOOGLE_CLIENT_ID` | Client ID from Step 7 of 10.2 |
+| `GOOGLE_CLIENT_SECRET` | Client secret from Step 7 of 10.2 |
+| `GOOGLE_REDIRECT_URI` | `https://obsys-silk.vercel.app/api/oauth/google/callback` (same as the redirect URI in Step 7 of 10.2) |
 
 `DATABASE_URL`, `TOKEN_ENCRYPTION_KEY` and `CRON_SECRET` stay as they are. Changing the client ID or
 secret invalidates any earlier Google connection, so you will reconnect in the next step.
@@ -294,7 +387,7 @@ deployment (see 10.7).
 | `redirect_uri_mismatch` | The redirect URI in Google and `GOOGLE_REDIRECT_URI` differ. Make them identical (scheme, host, path). |
 | "Google OAuth env vars are not fully configured" | A variable is missing/empty for Production, or you didn't redeploy after setting it. Re-save as a normal variable and redeploy. |
 | Red banner "Gmail is disconnected" on the dashboard | The connection expired or was revoked (Option B every ~7 days; any option after a password change). Click **Reconnect Gmail**. |
-| Follow-up says "Gmail needs the new read permission" | The connection predates `gmail.readonly`. Add the scope (step 4) and click **Reconnect Gmail**. |
+| Follow-up says "Gmail needs the new read permission" | The connection predates `gmail.readonly`. Add the scope (Step 6 of 10.2) and click **Reconnect Gmail**. |
 | Follow-up says the first email hasn't been sent | Send it from Gmail first; the app only threads onto an email that was really sent. |
 | Sheet error like "not found" / 403 on Save & Validate | The connected account can't open the Sheet — share it as Editor. |
 | Live site shows old code after a deploy | The `obsys-silk.vercel.app` alias didn't move. Run `npx vercel alias set <newest-deployment-url> obsys-silk.vercel.app`. A custom domain follows new deploys automatically. |
