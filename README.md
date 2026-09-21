@@ -22,7 +22,7 @@ Copy `.env.example` to `.env.local` and fill in:
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | From Google Cloud Console OAuth client |
 | `GOOGLE_REDIRECT_URI` | Must exactly match a redirect URI registered in Cloud Console |
 | `TOKEN_ENCRYPTION_KEY` | 32-byte key, base64. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
-| `CRON_SECRET` | Any random string. Required in the `x-cron-secret` header on `POST /api/pipeline/tick` |
+| `CRON_SECRET` | Any random string. Sent as the `x-cron-secret` header (or as a Bearer token by Vercel Cron) to `/api/pipeline/tick` |
 
 ## 2. Google Cloud Console setup
 
@@ -94,15 +94,21 @@ to trigger a tick manually instead of waiting on the scheduler.
    see step 2 above). If you used Vercel Postgres (§3), the database vars are already set.
 3. The database tables are created automatically by each build (§3 step 4), so there is nothing to run by hand.
    Check `/api/health` on the deployed address to confirm `database.tables_ready` is true.
-4. **Cron trigger** — pick one:
-   - **Vercel Pro**: add a `crons` entry to `vercel.json` pointing at
-     `/api/pipeline/tick` with schedule `* * * * *`, and set the `x-cron-secret` header via
-     Vercel's cron config. Vercel Cron on the free Hobby plan only runs once/day, so this
-     path needs Pro ($20/mo).
-   - **Free (recommended default for this project)**: use the included
-     `.github/workflows/pipeline-tick.yml`. Add two repo secrets — `APP_URL` (your deployed
-     URL) and `CRON_SECRET` (matching the Vercel env var) — and GitHub Actions will hit the
-     tick endpoint every minute for free.
+4. **Automatic runs — pick a scheduler.** Something has to call the pipeline regularly. The endpoint
+   `/api/pipeline/tick` accepts the secret as `x-cron-secret: <CRON_SECRET>` (POST) **or** as
+   `Authorization: Bearer <CRON_SECRET>` (GET, which is what Vercel Cron sends).
+
+   | Scheduler | Cost | How reliable | Setup |
+   |---|---|---|---|
+   | **Vercel Pro cron** | Vercel Pro plan | Best — runs every minute, on time | Add `"crons": [{"path": "/api/pipeline/tick", "schedule": "* * * * *"}]` to `vercel.json`. Vercel sends the Bearer header itself because a `CRON_SECRET` variable exists. **Only on Pro** — a per-minute cron makes a Hobby deployment fail. |
+   | **External scheduler** (for example cron-job.org) | Free tier | Good — runs when it says | Create a job that calls `POST <your address>/api/pipeline/tick` every 1–5 minutes with the header `x-cron-secret: <CRON_SECRET>`. The person types the secret. |
+   | **GitHub Actions** (`.github/workflows/pipeline-tick.yml`) | Free on a public repo | **Poor for timing** — see below | Add repo secrets `APP_URL` and `CRON_SECRET`. |
+
+   **Measured on the first install:** the GitHub schedule is set to every minute, but GitHub started it only
+   about every 2–6 hours (31 runs in four days). Every run succeeded; they were just rare. GitHub throttles
+   high-frequency schedules and gives no timing guarantee. Keep it as a free backup if you like, but for timely
+   drafts use Vercel Pro cron or an external scheduler. The **Run pipeline now** button on the dashboard always
+   works, and `/api/health` shows `cron_looks_alive` so you can see whether automatic runs are really happening.
 5. First-time connect happens the same way as local dev: visit `/connect` on the deployed
    URL, connect Gmail, connect the Sheet.
 
@@ -518,7 +524,7 @@ is needed.
 
 | Decision | Recommendation |
 |---|---|
-| **Repo visibility** | **Public.** The automatic run is a GitHub Actions schedule that fires about every minute. Public repos get unlimited free Actions minutes; a private repo has a small monthly allowance that a once-a-minute schedule would use up in roughly a day and a half. The repo contains no secrets (they live in Vercel and GitHub secrets). If it must be private, use Vercel Pro's built-in cron instead (section 5). |
+| **Repo visibility** | **Public.** The repo contains no secrets (they live in Vercel and GitHub secrets). A public repo also gets unlimited free GitHub Actions minutes, whereas a private one has a small monthly allowance that a once-a-minute schedule would use up in about a day and a half. If it must be private, do not rely on GitHub Actions for the schedule — use Vercel Pro cron or an external scheduler (section 5, step 4). |
 | **Vercel plan** | Hobby is fine for setting up and testing, but Vercel's Hobby plan is meant for personal, non-commercial use — check their current terms and use **Pro** for a business account. |
 | **Google audience** | **Internal**, with the Cloud project under your Workspace organization (section 10.1). No weekly reconnect, no verification. |
 | **Address** | Choose the stable address in Phase 2 **before** creating the Google OAuth client, because the redirect address is registered there. |
@@ -593,14 +599,16 @@ Internal setup), a new GitHub account and a new Vercel account (signing up to Ve
 5. *(person)* Add `TOKEN_ENCRYPTION_KEY` and `CRON_SECRET` (12.3) under **Settings → Environment Variables**
    for Production (normal variables). The agent then checks the **names** exist.
 
-**Phase 3 — GitHub: the automatic run (person types secrets; agent navigates).**
-1. Repository → **Settings → Secrets and variables → Actions → New repository secret**:
-   `APP_URL` = `$APP` (no trailing slash), and `CRON_SECRET` = the same value as in Vercel.
-2. **Actions → Pipeline Tick → Run workflow.** The run must finish **green**. (Red usually means the two
-   secrets are missing or `CRON_SECRET` differs from Vercel's.)
-3. The every-minute schedule can take up to about an hour to fire the first time, and GitHub pauses scheduled
-   workflows after 60 days with no repository activity. `$APP/api/health` will show
-   `cron_looks_alive` once Gmail and the Sheet are connected.
+**Phase 3 — The scheduler (person types secrets; agent navigates).** Choose from section 5, step 4:
+1. **Recommended:** Vercel Pro cron, or an external scheduler such as cron-job.org set to call
+   `POST $APP/api/pipeline/tick` every 1–5 minutes with the header `x-cron-secret: <CRON_SECRET>`
+   (the person types the secret into the scheduler).
+2. **Optional free backup:** GitHub Actions. Repository → **Settings → Secrets and variables → Actions → New
+   repository secret**: `APP_URL` = `$APP` (no trailing slash) and `CRON_SECRET` = the same value as in
+   Vercel. Then **Actions → Pipeline Tick → Run workflow**; it must finish **green** (red usually means a secret
+   is missing or differs from Vercel's). Expect its automatic schedule to fire only every few hours.
+3. *Verify:* once Gmail and the Sheet are connected (Phase 6), `$APP/api/health` shows
+   `cron_looks_alive: true` when the scheduler is working. `false` means runs are not arriving often enough.
 
 **Phase 4 — Google Cloud (agent navigates; person copies the secret).** Follow section 10.2 (Steps 1–7) using
 `$APP/api/oauth/google/callback` as the redirect URI, audience **Internal** (section 10.1). The person copies
@@ -629,8 +637,7 @@ the Client ID and Client secret at the end of Step 7.
    `DRAFTED`. Open Gmail → Drafts, send the first email to yourself, then use **Follow-up 1** and confirm the
    draft sits in the same thread.
 
-**Phase 8 — Final check.** `$APP/api/health` → `ok: true`, `fully_connected: true`, and, once the schedule has
-started, `cron_looks_alive: true`. Also check the sending domain's records (section 10.8).
+**Phase 8 — Final check.** `$APP/api/health` → `ok: true`, `fully_connected: true` and `cron_looks_alive: true`. Also check the sending domain's records (section 10.8).
 
 ### 12.5 Prompt to give the browser agent
 
