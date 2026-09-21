@@ -11,7 +11,6 @@ import type { ProviderStatus } from "@/lib/email-verifier";
 import {
   leadEmails,
   normalizeEmail,
-  overallVerdict,
   parseStore,
   PROVIDER_IDS,
   VERDICTS,
@@ -47,7 +46,6 @@ const VERDICT_WORD: Record<Verdict, string> = {
   risky: "Risky",
   unknown: "Unknown",
 };
-const PROVIDER_SHORT: Record<ProviderId, string> = { zerobounce: "ZB", hunter: "H", clay: "Clay" };
 const PROVIDER_NAME: Record<ProviderId, string> = { zerobounce: "ZeroBounce", hunter: "Hunter", clay: "Clay" };
 
 // ---------------------------------------------------------------------------
@@ -132,14 +130,13 @@ export function useSelection(leads: VLead[], ready: boolean) {
 // Small pieces
 // ---------------------------------------------------------------------------
 
-function VerdictChip({ verdict }: { verdict: Verdict | null }) {
-  if (!verdict) return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">Not checked</span>;
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${VERDICT_STYLE[verdict]}`}>{VERDICT_WORD[verdict]}</span>;
-}
-
-function ProviderChips({ checks }: { checks: EmailChecks | undefined }) {
+// One chip per service that checked the address, "Service: Result", coloured by the result.
+// "Not checked" when no service has looked at it yet.
+function ResultChips({ checks }: { checks: EmailChecks | undefined }) {
   const present = PROVIDER_IDS.filter((id) => checks?.[id]);
-  if (present.length === 0) return null;
+  if (present.length === 0) {
+    return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">Not checked</span>;
+  }
   return (
     <span className="flex flex-wrap gap-1">
       {present.map((id) => {
@@ -149,9 +146,9 @@ function ProviderChips({ checks }: { checks: EmailChecks | undefined }) {
           <span
             key={id}
             title={`${PROVIDER_NAME[id]}: ${VERDICT_WORD[c.v]}${c.raw ? ` (${c.raw})` : ""}${when ? ` — ${when}` : ""}`}
-            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${VERDICT_STYLE[c.v]}`}
+            className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${VERDICT_STYLE[c.v]}`}
           >
-            {PROVIDER_SHORT[id]}
+            {PROVIDER_NAME[id]}: {VERDICT_WORD[c.v]}
           </span>
         );
       })}
@@ -200,7 +197,7 @@ export function EmailPopover(props: {
                   type="button"
                   aria-pressed={on}
                   onClick={() => props.onToggle(email)}
-                  className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left text-sm ${
+                  className={`flex w-full items-start gap-2 rounded-md border px-2 py-1.5 text-left text-sm ${
                     on ? "border-blue-300 bg-blue-50" : "border-transparent hover:bg-slate-50"
                   }`}
                 >
@@ -211,11 +208,14 @@ export function EmailPopover(props: {
                   >
                     ✓
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-slate-800" title={email}>
-                    {email}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-slate-800" title={email}>
+                      {email}
+                    </span>
+                    <span className="mt-1 block">
+                      <ResultChips checks={checks} />
+                    </span>
                   </span>
-                  <ProviderChips checks={checks} />
-                  <VerdictChip verdict={overallVerdict(checks)} />
                 </button>
               </li>
             );
@@ -291,8 +291,7 @@ export function SelectedEmailsPanel(props: {
                           </button>
                         </div>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                          <VerdictChip verdict={overallVerdict(checks)} />
-                          <ProviderChips checks={checks} />
+                          <ResultChips checks={checks} />
                         </div>
                         <label className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
                           Clay result

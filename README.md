@@ -703,8 +703,8 @@ to check, and with which service, from the dashboard — so the free monthly cre
    the dashboard (it also remembers your selection if you reload the page).
 3. In the same row, click **ZeroBounce**, **Hunter** or **Clay**. That service checks the lead's selected addresses.
 4. The result shows immediately: on the badge (for example `2/3 verified`, green / amber / red), in the popup, and
-   as small chips (`ZB`, `H`, `Clay`) next to each address in the panel — hover a chip for the service's exact
-   wording and the time.
+   as one chip per service next to each address (for example `Clay: Undeliverable`, `Hunter: Risky`) — hover a
+   chip for the service's exact wording and the time.
 
 The buttons are greyed out with an explanation when: no address is selected, the service isn't set up, or another
 check is running.
