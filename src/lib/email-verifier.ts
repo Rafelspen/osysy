@@ -86,7 +86,13 @@ async function requestJson(
     return { status: res.status, data, retryAfter: Number.isFinite(ra) && ra > 0 ? ra : null };
   } catch (err: any) {
     if (err?.name === "AbortError") throw new VerifierError("network", `${label} took too long to answer — try again.`);
-    throw new VerifierError("network", `Couldn't reach ${label} — try again.`);
+    // Say why, with anything secret removed, so a bad setup can be told from a real outage.
+    let why = String(err?.cause?.code ?? err?.cause?.message ?? err?.message ?? "");
+    for (const secret of [...Object.values(init.headers ?? {}), url]) {
+      if (secret) why = why.split(secret).join("[hidden]");
+    }
+    why = why.replace(/\s+/g, " ").slice(0, 120);
+    throw new VerifierError("network", `Couldn't reach ${label}${why ? ` (${why})` : ""} — try again.`);
   } finally {
     clearTimeout(timer);
   }
