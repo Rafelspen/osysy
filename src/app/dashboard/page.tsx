@@ -63,6 +63,15 @@ const STAGE_ORDER = ["SOURCED", "ENRICHED", "VERIFIED", "OUTREACH", "QA", "DRAFT
 // each run handles 10 leads, so 40 rounds covers roughly 80 leads in one click.
 const MAX_ROUNDS = 40;
 const MAX_LOCK_RETRIES = 5;
+// Browsers word "can't reach the server" differently and unhelpfully ("Failed to fetch"...).
+function friendlyError(err: any, fallback: string): string {
+  const msg = String(err?.message ?? "");
+  if (err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(msg)) {
+    return "Couldn't reach the app — check your connection and try again.";
+  }
+  return msg || fallback;
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function DashboardPage() {
@@ -302,7 +311,7 @@ export default function DashboardPage() {
       setActionMessage({ ok: !!data.ok, text: `${name} — ${data.message ?? `Request failed (${status})`}` });
       await refreshQuietly(); // results that succeeded are saved even if others failed
     } catch (err: any) {
-      setActionMessage({ ok: false, text: `${name} — ${err.message ?? "Check failed"}` });
+      setActionMessage({ ok: false, text: `${name} — ${friendlyError(err, "Check failed")}` });
     } finally {
       setVerifyBusy(null);
     }
@@ -354,7 +363,7 @@ export default function DashboardPage() {
       if (!data.ok) setActionMessage({ ok: false, text: `${email} — ${data.message ?? `Couldn't save (${status})`}` });
       await refreshQuietly();
     } catch (err: any) {
-      setActionMessage({ ok: false, text: `${email} — ${err.message ?? "Couldn't save"}` });
+      setActionMessage({ ok: false, text: `${email} — ${friendlyError(err, "Couldn't save")}` });
     } finally {
       setVerifyBusy(null);
     }
@@ -373,7 +382,7 @@ export default function DashboardPage() {
       if (!data.ok) setActionMessage({ ok: false, text: `${email} — ${data.message ?? `Couldn't reset (${status})`}` });
       await refreshQuietly();
     } catch (err: any) {
-      setActionMessage({ ok: false, text: `${email} — ${err.message ?? "Couldn't reset"}` });
+      setActionMessage({ ok: false, text: `${email} — ${friendlyError(err, "Couldn't reset")}` });
     } finally {
       setVerifyBusy(null);
     }
