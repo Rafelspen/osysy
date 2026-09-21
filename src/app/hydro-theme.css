@@ -299,6 +299,9 @@ body.hydro::after {
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 24px rgba(0, 229, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
+/* square selectors in the popup: the address rows and their tick boxes */
+.hydro [data-email-popover] button,
+.hydro [data-email-popover] button > span:first-child { border-radius: 0; }
 .hydro .shadow-lg { box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 24px rgba(0, 229, 255, 0.18); }
 
 /* ---- Misc ------------------------------------------------------------------------------- */

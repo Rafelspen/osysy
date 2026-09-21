@@ -36,6 +36,19 @@ const STAGE_COLORS: Record<string, string> = {
   DRAFTED: "bg-green-100 text-green-800",
 };
 
+// last_error holds real errors and also standing warnings ("domain mismatch warning:",
+// "deliverability warning:"). A warning can be carried after an error ("error; domain
+// mismatch warning: ..."), so split it off to show it in its own amber callout.
+function splitLastError(text: string): { error: string; warning: string } {
+  const t = text.trim();
+  if (!t) return { error: "", warning: "" };
+  if (/^deliverability warning:/i.test(t)) return { error: "", warning: t };
+  const at = t.search(/domain mismatch warning:/i);
+  if (at === 0) return { error: "", warning: t };
+  if (at > 0) return { error: t.slice(0, at).replace(/[;\s]+$/, ""), warning: t.slice(at) };
+  return { error: t, warning: "" };
+}
+
 // mxStatus is stored as "X/Y valid" — X of the Y found addresses (Official/
 // Secondary/Another) have a domain confirmed able to receive mail.
 function mxBadge(mxStatus: string): { label: string; className: string } | null {
@@ -581,7 +594,19 @@ export default function DashboardPage() {
                       </>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-red-700">{lead.lastError}</td>
+                  <td className="px-4 py-2">
+                    {(() => {
+                      const { error, warning } = splitLastError(lead.lastError);
+                      return (
+                        <div className="space-y-1.5">
+                          {error && <div className="text-red-700">{error}</div>}
+                          {warning && (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">{warning}</div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-2">
                     {lead.stage.trim().toUpperCase() === "DRAFTED" ? (
                       <div className="flex flex-wrap gap-1.5">
