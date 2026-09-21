@@ -10,6 +10,7 @@ type Lead = {
   stage: string;
   lastError: string;
   mxStatus: string;
+  emailVerified: string;
   followup1DraftId: string;
   followup2DraftId: string;
   followup3DraftId: string;
@@ -43,6 +44,25 @@ function mxBadge(mxStatus: string): { label: string; className: string } | null 
   return { label: mxStatus, className: "bg-amber-100 text-amber-800" };
 }
 
+// emailVerified comes from the optional mailbox verifier and looks like
+// "2/3 deliverable · bad@x.com: undeliverable". Blank means it has not run.
+function verifiedBadge(
+  value: string,
+  configured: boolean
+): { label: string; className: string; title?: string } | null {
+  const match = value.match(/^(\d+)\/(\d+) deliverable/);
+  if (match) {
+    const good = Number(match[1]);
+    const total = Number(match[2]);
+    const label = `${good}/${total} verified`;
+    if (total > 0 && good === total) return { label, className: "bg-green-100 text-green-800", title: value };
+    if (good === 0) return { label, className: "bg-red-100 text-red-800", title: value };
+    return { label, className: "bg-amber-100 text-amber-800", title: value };
+  }
+  if (!configured) return { label: "Not set up", className: "bg-slate-100 text-slate-500", title: "No email verifier is connected yet" };
+  return null;
+}
+
 const STAGE_ORDER = ["SOURCED", "ENRICHED", "VERIFIED", "OUTREACH", "QA", "DRAFTED"];
 
 // "Run until done" safety limits. A lead needs at most 5 runs to reach DRAFTED and
@@ -60,6 +80,7 @@ export default function DashboardPage() {
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [gmailDisconnected, setGmailDisconnected] = useState(false);
+  const [verifierConfigured, setVerifierConfigured] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [looping, setLooping] = useState(false);
@@ -78,6 +99,7 @@ export default function DashboardPage() {
       setCounts(data.counts ?? {});
       setConnected(data.connected ?? false);
       setGmailDisconnected(!!data.gmailDisconnected);
+      setVerifierConfigured(!!data.emailVerifierConfigured);
     } catch (err: any) {
       setLoadError(err.message ?? "Failed to load leads");
       setLeads([]);
@@ -126,6 +148,7 @@ export default function DashboardPage() {
     setCounts(data.counts ?? {});
     setConnected(data.connected ?? false);
     setGmailDisconnected(!!data.gmailDisconnected);
+    setVerifierConfigured(!!data.emailVerifierConfigured);
     return { leads: data.leads ?? [], counts: data.counts ?? {} };
   }
 
@@ -305,6 +328,7 @@ export default function DashboardPage() {
               <th className="px-4 py-2">Website</th>
               <th className="px-4 py-2">Stage</th>
               <th className="min-w-[110px] whitespace-nowrap px-4 py-2">MX/Domain</th>
+              <th className="min-w-[120px] whitespace-nowrap px-4 py-2">Email Verified</th>
               <th className="px-4 py-2">Error</th>
               <th className="min-w-[190px] px-4 py-2">Action</th>
             </tr>
@@ -312,20 +336,21 @@ export default function DashboardPage() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                   Loading...
                 </td>
               </tr>
             )}
             {!loading && leads.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                   No leads yet.
                 </td>
               </tr>
             )}
             {leads.map((lead) => {
               const mx = mxBadge(lead.mxStatus);
+              const verified = verifiedBadge(lead.emailVerified, verifierConfigured);
               return (
                 <tr key={lead.rowNumber} className="border-t border-slate-100">
                   <td className="px-4 py-2 font-medium text-slate-900">{lead.companyName || "—"}</td>
@@ -338,6 +363,18 @@ export default function DashboardPage() {
                   <td className="whitespace-nowrap px-4 py-2">
                     {mx ? (
                       <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${mx.className}`}>{mx.label}</span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2">
+                    {verified ? (
+                      <span
+                        title={verified.title}
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${verified.className}`}
+                      >
+                        {verified.label}
+                      </span>
                     ) : (
                       <span className="text-slate-300">—</span>
                     )}

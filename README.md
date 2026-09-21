@@ -165,7 +165,7 @@ risk than anything in the email body.
 
 ## 8. Sheet contract
 
-Columns A–K, header row required, exact order:
+Columns A–P, header row required, exact order:
 
 | Col | Field | Filled by |
 |---|---|---|
@@ -185,6 +185,7 @@ Columns A–K, header row required, exact order:
 | M | followup_1_draft_id | Dashboard button "Follow-up 1" — dedup key |
 | N | followup_2_draft_id | Dashboard button "Follow-up 2" — dedup key |
 | O | followup_3_draft_id | Dashboard button "Final follow-up" — dedup key |
+| P | email_verified | Pipeline (ENRICHED), only when an email verifier is connected (section 13) — e.g. `2/3 deliverable · bad@x.com: undeliverable` |
 
 If you connected your Sheet before these columns existed, add the header `mx_status` to K1 yourself — the pipeline writes to K regardless, but the column won't have a label until you add it. Headers L1:O1 are filled in automatically the first time a follow-up button is used, if all four are empty.
 
@@ -684,3 +685,70 @@ Rules:
 | `last_pipeline_run` | Minutes since the last run and its status |
 | `cron_looks_alive` | `true` if a run happened in the last 15 minutes; `null` until Gmail and the Sheet are connected; `false` means the GitHub schedule is not firing |
 | `version` | The commit this deployment was built from |
+
+## 13. Adding an email verifier (mailbox-level checks)
+
+**What exists today.** The **MX/Domain** column only proves that an address's *domain* can receive mail. It cannot
+tell a real mailbox from a made-up one at the same domain (`design@yourcompany.com` passes even if nobody has that
+address). Confirming a *mailbox* needs an outside verification service, because a hosting platform like Vercel
+cannot open the mail-server connection needed to check it itself.
+
+**What is built.** The socket for it is already in place; no service is plugged in yet:
+
+- The dashboard has an **Email Verified** column (between MX/Domain and Error). Until a service is connected it
+  shows a grey **Not set up**.
+- `src/lib/email-verifier.ts` normalizes every service's answer to one of four verdicts —
+  `deliverable`, `undeliverable`, `risky` (for example a catch-all domain) or `unknown` — and handles timeouts and
+  parallel lookups.
+- The result is stored in the Sheet column `email_verified` (column P) as, for example,
+  `2/3 deliverable · bad@x.com: undeliverable`. The dashboard shows it as `2/3 verified`, coloured green (all),
+  amber (some) or red (none); hover for the detail.
+- `/api/health` reports `email_verifier: { configured, provider }`.
+
+**What it does once a service is connected** (nothing changes before that):
+
+| Verdict | Effect |
+|---|---|
+| `undeliverable` | That address is never chosen as TO (the next best address is used instead) and is left out of CC. If **every** address is undeliverable the lead stays at `ENRICHED` with a clear error. |
+| `risky` / `unknown` | Let through and shown in the column. A failed or timed-out lookup is `unknown` — it never blocks a lead. |
+| `deliverable` | Counted as verified. |
+
+Addresses are checked once per lead, at the `ENRICHED` stage, up to three per lead (the To and the two CC slots).
+Most services charge per address checked, so a lead with three addresses costs three checks; some offer a small
+free monthly allowance — check the current pricing of the service you choose.
+
+### 13.1 Steps to connect a service
+
+1. **Choose a service and create an account** (the person does this). Note its API-key page.
+2. **Add an adapter** — a small object with one `verify` function — to `src/lib/email-verifier.ts` and register it
+   in the `PROVIDERS` table under a short name. Template:
+
+   ```ts
+   const myservice: EmailVerifierProvider = {
+     async verify(email, apiKey, signal) {
+       const res = await fetch(
+         `https://api.example.com/verify?email=${encodeURIComponent(email)}&api_key=${encodeURIComponent(apiKey)}`,
+         { signal }
+       );
+       if (!res.ok) throw new Error(`verifier HTTP ${res.status}`); // becomes "unknown"
+       const data = await res.json();
+       // Map the service's own words to our four verdicts:
+       if (data.status === "valid") return "deliverable";
+       if (data.status === "invalid") return "undeliverable";
+       if (data.status === "catch-all" || data.status === "risky") return "risky";
+       return "unknown";
+     },
+   };
+   const PROVIDERS: Record<string, EmailVerifierProvider> = { myservice };
+   ```
+   The status words above are only an example — use the ones from the service's documentation.
+3. **Set two Vercel variables** for Production, as normal (not Sensitive) variables — the person types the key:
+   - `EMAIL_VERIFIER_PROVIDER` = the short name you registered (for example `myservice`)
+   - `EMAIL_VERIFIER_API_KEY` = the service's API key
+4. **Redeploy**, then open `$APP/api/health`: `email_verifier.configured` must be `true`. If it says
+   `false`, the `reason` field tells you why (unknown provider name, or missing key).
+5. **Test with an address you know is fake** on a real domain. On the next run of a fresh lead, the
+   **Email Verified** column should show it as not verified, and it should not become the TO address.
+
+A person adding this with an AI agent: the agent may write the adapter and open the health page, but the
+person creates the account and types `EMAIL_VERIFIER_API_KEY` (section 11.1).

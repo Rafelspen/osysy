@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { query } from "./db";
 import { acquireLock, releaseLock } from "./lock";
 import { getAccountRow, getAuthorizedClient } from "./google-oauth";
-import { readLeadRows, updateLeadRow } from "./sheets";
+import { ensureHeaders, readLeadRows, updateLeadRow } from "./sheets";
 import { advanceLead } from "./pipeline";
 import { errorMessage } from "./error";
 
@@ -40,6 +40,8 @@ export async function runPipelineTick(): Promise<TickSummary> {
 
   try {
     const auth = await getAuthorizedClient();
+    // Label any newer columns an older Sheet is missing. Cosmetic, so a failure never stops the run.
+    await ensureHeaders(auth, account.sheet_id).catch(() => {});
     const leads = await readLeadRows(auth, account.sheet_id);
     const pending = leads.filter((l) => l.stage.trim().toUpperCase() !== "DRAFTED").slice(0, LEADS_PER_TICK);
 

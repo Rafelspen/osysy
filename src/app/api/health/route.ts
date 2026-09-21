@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { errorMessage } from "@/lib/error";
+import { getVerifierConfig } from "@/lib/email-verifier";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,7 @@ export async function GET(req: NextRequest) {
     templates,
     last_pipeline_run: lastRun,
     cron_looks_alive: cronLooksAlive,
+    email_verifier: getVerifierConfig(),
     version: (process.env.VERCEL_GIT_COMMIT_SHA ?? "").slice(0, 7) || null,
   });
 }

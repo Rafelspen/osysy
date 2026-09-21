@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAccountRow, getAuthorizedClient, GmailDisconnectedError } from "@/lib/google-oauth";
 import { readLeadRows, PIPELINE_STAGES } from "@/lib/sheets";
 import { errorMessage } from "@/lib/error";
+import { getVerifierConfig } from "@/lib/email-verifier";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET() {
       if (stage in counts) counts[stage] += 1;
     }
 
-    return NextResponse.json({ connected: true, leads, counts });
+    return NextResponse.json({ connected: true, leads, counts, emailVerifierConfigured: getVerifierConfig().configured });
   } catch (err: any) {
     if (err instanceof GmailDisconnectedError) {
       return NextResponse.json({ connected: true, gmailDisconnected: true, leads: [], counts: {} });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAccountRow, getAuthorizedClient, GmailDisconnectedError } from "@/lib/google-oauth";
-import { ensureFollowupHeaders, readLeadRows } from "@/lib/sheets";
+import { ensureHeaders, readLeadRows } from "@/lib/sheets";
 import { draftFollowUp, type FollowUpStep } from "@/lib/followup";
 import { errorMessage } from "@/lib/error";
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await ensureFollowupHeaders(auth, account.sheet_id);
+    await ensureHeaders(auth, account.sheet_id);
     const result = await draftFollowUp(auth, account.sheet_id, lead, step as FollowUpStep);
     return NextResponse.json(result, { status: result.status });
   } catch (err) {
