@@ -88,7 +88,13 @@ async function requestJson(
     if (err?.name === "AbortError") throw new VerifierError("network", `${label} took too long to answer — try again.`);
     // Say why, with anything secret removed, so a bad setup can be told from a real outage.
     let why = String(err?.cause?.code ?? err?.cause?.message ?? err?.message ?? "");
-    for (const secret of [...Object.values(init.headers ?? {}), url]) {
+    let queryValues: string[] = [];
+    try {
+      queryValues = Array.from(new URL(url).searchParams.values());
+    } catch {
+      /* not a parseable URL: nothing extra to hide */
+    }
+    for (const secret of [...Object.values(init.headers ?? {}), ...queryValues, url]) {
       if (secret) why = why.split(secret).join("[hidden]");
     }
     why = why.replace(/\s+/g, " ").slice(0, 120);
