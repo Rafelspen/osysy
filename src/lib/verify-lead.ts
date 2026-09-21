@@ -7,6 +7,7 @@ import {
   leadEmails,
   normalizeEmail,
   parseStore,
+  PROVIDER_IDS,
   serializeStore,
   setCheck,
   VERDICTS,
@@ -118,12 +119,12 @@ export async function recordResult(args: { lead: LeadRow; input: RecordAction; i
 
   let store = parseStore(await io.read());
   if (input.action === "set") {
-    if (input.provider !== "clay") throw new HttpError(400, "Only Clay results can be entered by hand.");
+    if (!(PROVIDER_IDS as readonly string[]).includes(input.provider)) throw new HttpError(400, "Unknown service.");
     if (!(VERDICTS as readonly string[]).includes(input.verdict)) throw new HttpError(400, "Unknown result.");
-    store = setCheck(store, email, "clay", { v: input.verdict as Verdict, raw: "entered by hand", t: now().toISOString(), manual: true });
+    store = setCheck(store, email, input.provider, { v: input.verdict as Verdict, raw: "entered by hand", t: now().toISOString(), manual: true });
   } else if (input.action === "clear") {
-    if (input.provider !== "clay") throw new HttpError(400, "Only Clay results can be cleared individually.");
-    store = clearCheck(store, email, "clay");
+    if (!(PROVIDER_IDS as readonly string[]).includes(input.provider)) throw new HttpError(400, "Unknown service.");
+    store = clearCheck(store, email, input.provider);
   } else {
     store = clearEmail(store, email);
   }

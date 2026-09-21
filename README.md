@@ -736,8 +736,14 @@ starts that function through Clay's Public API (`POST /routines/function:t_…/r
 Each Clay run uses Clay credits, and the API may not be available on every plan — check your Clay account.
 
 **Clay, manual mode (default).** Until both variables are set, the **Clay** button copies the selected addresses
-and opens Clay; you run Clay's verification there, then choose the result under **Clay result** for that address in
-the left panel. It is stored and shown exactly like the other services.
+and opens Clay; you run Clay's verification there, then record the result with **Set result from → Clay** for that
+address in the left panel. It is stored and shown exactly like the other services.
+
+**Setting a result by hand (any service).** Under each selected address the left panel has **Set result from**: pick
+the service (ZeroBounce, Hunter or Clay), then the result (`deliverable`, `risky`, `undeliverable`, `unknown`, or
+`not entered` to remove it). Use it to enter an answer you got outside the app, or to correct one. A hand-entered
+result is marked with a **✎** and counts as that service's answer, so the app will **not** spend a credit re-checking
+that address with that service; set it back to `not entered` to allow a fresh check.
 
 ### 13.3 What the results mean
 

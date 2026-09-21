@@ -365,10 +365,10 @@ export default function DashboardPage() {
     else fallback();
   }
 
-  async function recordClay(lead: Lead, email: string, verdict: Verdict | "") {
+  async function recordManual(lead: Lead, email: string, provider: ProviderId, verdict: Verdict | "") {
     setVerifyBusy("record");
     try {
-      const body = { rowNumber: lead.rowNumber, websiteUrl: lead.websiteUrl, email, provider: "clay" };
+      const body = { rowNumber: lead.rowNumber, websiteUrl: lead.websiteUrl, email, provider };
       const { status, data } = await postJson(
         "/api/leads/verify/record",
         verdict ? { ...body, action: "set", verdict } : { ...body, action: "clear" }
@@ -429,7 +429,7 @@ export default function DashboardPage() {
             busy={verifyBusy !== null || looping}
             onRemove={selection.remove}
             onClear={selection.clear}
-            onClay={(l, email, verdict) => recordClay(l as Lead, email, verdict)}
+            onSet={(l, email, provider, verdict) => recordManual(l as Lead, email, provider, verdict)}
             onReset={(l, email) => resetEmail(l as Lead, email)}
           />
         </div>

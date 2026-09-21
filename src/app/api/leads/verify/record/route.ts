@@ -8,8 +8,8 @@ import { errorMessage } from "@/lib/error";
 export const dynamic = "force-dynamic";
 
 // POST { rowNumber, websiteUrl, action: "set" | "clear" | "reset", email, provider?, verdict? }
-//   set    — record a result typed in by hand (Clay only)
-//   clear  — remove one service's result for an address (Clay only)
+//   set    — record a result typed in by hand (any service)
+//   clear  — remove one service's result for an address
 //   reset  — forget every result for an address so it can be verified again
 export async function POST(req: NextRequest) {
   try {

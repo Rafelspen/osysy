@@ -145,10 +145,10 @@ function ResultChips({ checks }: { checks: EmailChecks | undefined }) {
         return (
           <span
             key={id}
-            title={`${PROVIDER_NAME[id]}: ${VERDICT_WORD[c.v]}${c.raw ? ` (${c.raw})` : ""}${when ? ` — ${when}` : ""}`}
+            title={`${PROVIDER_NAME[id]}: ${VERDICT_WORD[c.v]}${c.manual ? " (entered by hand)" : c.raw ? ` (${c.raw})` : ""}${when ? ` — ${when}` : ""}`}
             className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${VERDICT_STYLE[c.v]}`}
           >
-            {PROVIDER_NAME[id]}: {VERDICT_WORD[c.v]}
+            {PROVIDER_NAME[id]}: {VERDICT_WORD[c.v]}{c.manual ? " ✎" : ""}
           </span>
         );
       })}
@@ -226,6 +226,50 @@ export function EmailPopover(props: {
   );
 }
 
+// Enter or correct a result by hand, for whichever service supplied it.
+function ManualResult(props: {
+  lead: VLead;
+  email: string;
+  checks: EmailChecks | undefined;
+  busy: boolean;
+  onSet: (lead: VLead, email: string, provider: ProviderId, verdict: Verdict | "") => void;
+}) {
+  const [provider, setProvider] = useState<ProviderId>("clay");
+  const current = props.checks?.[provider];
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+      <span>Set result from</span>
+      <select
+        aria-label={`Which service the result for ${props.email} comes from`}
+        disabled={props.busy}
+        value={provider}
+        onChange={(e) => setProvider(e.target.value as ProviderId)}
+        className="rounded border border-slate-300 bg-white px-1 py-0.5 text-[11px] text-slate-700 disabled:opacity-50"
+      >
+        {PROVIDER_IDS.map((id) => (
+          <option key={id} value={id}>
+            {PROVIDER_NAME[id]}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label={`Result from ${PROVIDER_NAME[provider]} for ${props.email}`}
+        disabled={props.busy}
+        value={current?.v ?? ""}
+        onChange={(e) => props.onSet(props.lead, props.email, provider, e.target.value as Verdict | "")}
+        className="rounded border border-slate-300 bg-white px-1 py-0.5 text-[11px] text-slate-700 disabled:opacity-50"
+      >
+        <option value="">not entered</option>
+        {VERDICTS.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Left-hand panel listing every selected address
 // ---------------------------------------------------------------------------
@@ -236,7 +280,7 @@ export function SelectedEmailsPanel(props: {
   busy: boolean;
   onRemove: (key: string) => void;
   onClear: () => void;
-  onClay: (lead: VLead, email: string, verdict: Verdict | "") => void;
+  onSet: (lead: VLead, email: string, provider: ProviderId, verdict: Verdict | "") => void;
   onReset: (lead: VLead, email: string) => void;
 }) {
   // Group by lead, keeping the Sheet's row order.
@@ -293,22 +337,7 @@ export function SelectedEmailsPanel(props: {
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <ResultChips checks={checks} />
                         </div>
-                        <label className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-                          Clay result
-                          <select
-                            disabled={props.busy}
-                            value={checks?.clay?.v ?? ""}
-                            onChange={(e) => props.onClay(lead, email, e.target.value as Verdict | "")}
-                            className="rounded border border-slate-300 bg-white px-1 py-0.5 text-[11px] text-slate-700 disabled:opacity-50"
-                          >
-                            <option value="">not entered</option>
-                            {VERDICTS.map((v) => (
-                              <option key={v} value={v}>
-                                {v}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                        <ManualResult lead={lead} email={email} checks={checks} busy={props.busy} onSet={props.onSet} />
                         {hasAny && (
                           <button
                             disabled={props.busy}
@@ -331,7 +360,7 @@ export function SelectedEmailsPanel(props: {
 
       <p className="mt-4 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-400">
         Each ZeroBounce or Hunter check uses one credit per address; an address a service has already checked is never
-        checked again by that service. Clay runs on Clay&rsquo;s own site — enter its result above.
+        checked again by that service. &ldquo;Set result from&rdquo; records a result by hand (marked &#9998;) for any service, and it counts as that service&rsquo;s answer.
       </p>
     </div>
   );
