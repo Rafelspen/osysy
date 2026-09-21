@@ -4,6 +4,8 @@ Single-user control room for an automated cold-outreach pipeline. Leads live in 
 Sheet; this app reads/advances them through pipeline stages and drafts personalized emails
 in Gmail for manual review and send. Nothing is ever auto-sent.
 
+> **Setting this up on new accounts, or having an AI agent do it?** Go straight to [section 12](#12-fresh-install-on-new-accounts-person--browser-agent). Google-specific steps are in section 10, agent rules in section 11.
+
 ## Stack
 
 Next.js 14 (App Router, TypeScript) on Vercel, Postgres for app state (OAuth tokens,
@@ -23,6 +25,9 @@ Copy `.env.example` to `.env.local` and fill in:
 | `CRON_SECRET` | Any random string. Required in the `x-cron-secret` header on `POST /api/pipeline/tick` |
 
 ## 2. Google Cloud Console setup
+
+> This is the short version. The complete, current walkthrough (including the Internal setup for a Workspace
+> account) is **section 10.2**.
 
 1. Create a project (or reuse one) at console.cloud.google.com.
 2. **APIs & Services -> Library**: enable "Google Sheets API" and "Gmail API".
@@ -59,7 +64,8 @@ production — no separate local install, no syncing two DBs.
    This also pulls in anything else you've set in Vercel's dashboard (Google OAuth vars,
    `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET` — see §1 and §2), so add those in the Vercel
    dashboard first if you want one `vercel env pull` to grab everything.
-4. Run the migration (reads `DATABASE_URL`, falling back to `POSTGRES_URL_NON_POOLING` /
+4. The tables are created **automatically on every build** (`npm run build` runs the migration first, and simply
+   skips it if no database is connected yet). To run it by hand instead (reads `DATABASE_URL`, falling back to `POSTGRES_URL_NON_POOLING` /
    `POSTGRES_URL`):
    ```bash
    npm run migrate
@@ -86,8 +92,8 @@ to trigger a tick manually instead of waiting on the scheduler.
 2. Set the same env vars in Vercel's project settings (**use the production
    `GOOGLE_REDIRECT_URI`**, and add that exact URL as a redirect URI in Cloud Console too —
    see step 2 above). If you used Vercel Postgres (§3), the database vars are already set.
-3. Make sure the migration has been run against whichever `DATABASE_URL`/`POSTGRES_URL`
-   production is using (§3 step 4 covers this if you're on Vercel Postgres).
+3. The database tables are created automatically by each build (§3 step 4), so there is nothing to run by hand.
+   Check `/api/health` on the deployed address to confirm `database.tables_ready` is true.
 4. **Cron trigger** — pick one:
    - **Vercel Pro**: add a `crons` entry to `vercel.json` pointing at
      `/api/pipeline/tick` with schedule `* * * * *`, and set the `x-cron-secret` header via
@@ -193,7 +199,7 @@ This app is **single-account**: it holds one Google connection at a time. Connec
 account replaces whichever account was connected before (for example a personal Gmail used for testing).
 Your leads, templates and Sheet are not affected.
 
-Below, `https://obsys-silk.vercel.app` is the production address. If you later add a custom domain, use
+Below, `https://obsys-silk.vercel.app` is the production address of the first install. On a new install use your own stable address everywhere it appears (see section 12). If you later add a custom domain, use
 that everywhere instead.
 
 ### 10.1 Choose how the Google app is set up
@@ -482,3 +488,182 @@ say precisely what the human must click or paste, then wait.
 - `npx vercel env ls` is missing a required name.
 - Any step would require entering a secret, signing in to Google or accepting terms.
 - The production alias points at a build older than the latest commit and moving it is not authorized.
+
+## 12. Fresh install on new accounts (person + browser agent)
+
+Use this section to set the whole project up from zero on **new business accounts** (GitHub, Vercel,
+Google Workspace), with a person working alongside an AI agent that drives the browser (for example
+Claude in Chrome). It is written so an agent can follow it top to bottom. Sections 10 and 11 hold the
+details for the Google side; this section is the order of operations.
+
+Throughout, **`$APP`** means the stable address you choose in Phase 2 (for example
+`https://your-name.vercel.app`, no trailing slash). Replace `obsys-silk.vercel.app` in sections 10 and 11
+with it — that address belonged to the first install.
+
+### 12.1 Who does what
+
+An agent can navigate, read screens, and fill in non-secret settings. Anything that is a **secret, a
+credential, a legal acceptance, or an identity check is done by the person.** The agent stops and says what
+is needed.
+
+| Person only | Agent can do |
+|---|---|
+| Create accounts and sign in (GitHub, Vercel, Google); 2-factor prompts; CAPTCHAs | Open the right pages, read what is on screen, tell the person the next click |
+| Authorize GitHub for Vercel; accept Neon/marketplace terms and any terms of service | Create the Vercel project settings, add the domain, enable the Google APIs, set the audience, add the three scopes, add the redirect URI |
+| **Type or paste every secret**: `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET` (and the Client ID) into Vercel and GitHub fields | Check that variables **exist** (names only) and that the app sees them, using `$APP/api/health` |
+| Approve Google's consent screen when connecting Gmail | Compare `$APP/api/health` and the OAuth redirect against the expected values, and report anything red |
+| Any payment or plan upgrade | Run the verification commands in each phase |
+
+### 12.2 Decisions before starting
+
+| Decision | Recommendation |
+|---|---|
+| **Repo visibility** | **Public.** The automatic run is a GitHub Actions schedule that fires about every minute. Public repos get unlimited free Actions minutes; a private repo has a small monthly allowance that a once-a-minute schedule would use up in roughly a day and a half. The repo contains no secrets (they live in Vercel and GitHub secrets). If it must be private, use Vercel Pro's built-in cron instead (section 5). |
+| **Vercel plan** | Hobby is fine for setting up and testing, but Vercel's Hobby plan is meant for personal, non-commercial use — check their current terms and use **Pro** for a business account. |
+| **Google audience** | **Internal**, with the Cloud project under your Workspace organization (section 10.1). No weekly reconnect, no verification. |
+| **Address** | Choose the stable address in Phase 2 **before** creating the Google OAuth client, because the redirect address is registered there. |
+
+### 12.3 Every variable, and where it lives
+
+| Name | Where it goes | How you get it |
+|---|---|---|
+| `DATABASE_URL` and the other `POSTGRES_*` / `PG*` names | Vercel | Added **automatically** by the Neon integration in Phase 2. **Never add `DATABASE_URL` by hand** — a hand-made one blocks the integration from connecting. |
+| `GOOGLE_CLIENT_ID` | Vercel | Google Cloud, Phase 4 (section 10.2, Step 7) |
+| `GOOGLE_CLIENT_SECRET` | Vercel | Google Cloud, same step. Shown once — copy it then. |
+| `GOOGLE_REDIRECT_URI` | Vercel | `$APP/api/oauth/google/callback` — identical to the redirect URI registered in Google |
+| `TOKEN_ENCRYPTION_KEY` | Vercel | Generate below (32 random bytes, base64) |
+| `CRON_SECRET` | Vercel **and** the GitHub repo secret of the same name | Generate below. Must be **identical** in both places. |
+| `APP_URL` | GitHub repo secret only | `$APP` |
+
+Generate the two random values on any computer with Node.js (nothing is stored or sent anywhere):
+
+```bash
+npm run gen:secrets
+```
+
+No Node? Any of these produce the same kind of value:
+
+```bash
+openssl rand -base64 32     # TOKEN_ENCRYPTION_KEY
+openssl rand -hex 24        # CRON_SECRET
+```
+```powershell
+# PowerShell, TOKEN_ENCRYPTION_KEY
+$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
+```
+
+Rules that prevent the problems seen during the first setup:
+
+- Save Vercel variables as **normal** variables. Do **not** tick "Sensitive": those values did not reach the
+  running app.
+- After adding or changing any Vercel variable, **redeploy**, then re-check `$APP/api/health`.
+- Do not paste secrets into chat, documents or code.
+
+### 12.4 Runbook
+
+Check `$APP/api/health` at the end of each phase (see 12.6). It returns only true/false values and counts.
+
+**Phase 0 — Accounts (person).** Have ready: the business Google account (a Workspace admin, for the
+Internal setup), a new GitHub account and a new Vercel account (signing up to Vercel with GitHub is easiest).
+
+**Phase 1 — Put the code in the new GitHub account (person; agent can navigate).**
+1. On the new GitHub account open `https://github.com/new/import`, paste the URL of the existing repository,
+   name the new repository (for example `obsys`) and set it **Public** (see 12.2). GitHub copies it.
+   Alternative: create an empty repository and push a local copy to it.
+2. Confirm the new repository shows the files and that **Actions** is available (if GitHub shows
+   "I understand my workflows, go ahead and enable them", the person clicks it).
+
+**Phase 2 — Vercel: project, stable address, database, secrets.**
+1. *(person)* Vercel → **Add New → Project → Import Git Repository**; authorize GitHub when asked and pick
+   the new repository. Framework should say **Next.js**. Click **Deploy**. The first build succeeds even
+   without a database — the setup pages will simply say what is missing.
+2. *(agent)* **Stable address:** Project → **Settings → Domains → Add**, enter the name you want, ending in
+   `.vercel.app`, assign it to **Production**. This address always follows the newest production build, so
+   nothing goes stale. Write it down as `$APP`.
+   *Verify:* `curl -s -o /dev/null -w "%{http_code}\n" $APP/api/health` must print `200`. If it redirects to a
+   Vercel login page, open **Settings → Deployment Protection** and make production reachable without login
+   (Google and GitHub must be able to reach it).
+3. *(person accepts terms; agent navigates)* **Database:** Project → **Storage → Create Database → Neon →
+   Free plan**, region the same as the functions (for example `iad1`), authentication **off**, connect it to
+   **all environments**. The person accepts Neon's terms. This adds `DATABASE_URL` and the other database
+   variables by itself.
+4. *(agent)* **Redeploy** (Deployments → the newest one → Redeploy). Each build applies the database tables
+   automatically. *Verify:* `$APP/api/health` shows `database.reachable: true` and
+   `database.tables_ready: true`.
+5. *(person)* Add `TOKEN_ENCRYPTION_KEY` and `CRON_SECRET` (12.3) under **Settings → Environment Variables**
+   for Production (normal variables). The agent then checks the **names** exist.
+
+**Phase 3 — GitHub: the automatic run (person types secrets; agent navigates).**
+1. Repository → **Settings → Secrets and variables → Actions → New repository secret**:
+   `APP_URL` = `$APP` (no trailing slash), and `CRON_SECRET` = the same value as in Vercel.
+2. **Actions → Pipeline Tick → Run workflow.** The run must finish **green**. (Red usually means the two
+   secrets are missing or `CRON_SECRET` differs from Vercel's.)
+3. The every-minute schedule can take up to about an hour to fire the first time, and GitHub pauses scheduled
+   workflows after 60 days with no repository activity. `$APP/api/health` will show
+   `cron_looks_alive` once Gmail and the Sheet are connected.
+
+**Phase 4 — Google Cloud (agent navigates; person copies the secret).** Follow section 10.2 (Steps 1–7) using
+`$APP/api/oauth/google/callback` as the redirect URI, audience **Internal** (section 10.1). The person copies
+the Client ID and Client secret at the end of Step 7.
+
+**Phase 5 — Give Vercel the Google values (person pastes; agent checks).**
+1. The person adds `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` (12.3) in Vercel,
+   then the agent redeploys.
+2. *Verify:* `$APP/api/health` → every `env.*` value is `true`, including
+   `google_redirect_uri_matches_this_address`, and `ready_to_connect_gmail: true`.
+   Also `curl -sI $APP/api/oauth/google | grep -i '^location'` should show the new `client_id`, the same
+   `redirect_uri`, and all three scopes.
+
+**Phase 6 — Connect (person approves).**
+1. Open `$APP/connect` → **Connect Gmail** → choose the business account → approve the three permissions.
+   The page then shows **Connected as `<address>`**.
+2. Create a blank Google Sheet in the business account (`sheets.new`), copy its URL, paste it under
+   **Google Sheet** → **Save & Validate**. The header row (columns A–O) is written automatically.
+3. *Verify:* `$APP/api/health` → `fully_connected: true`.
+
+**Phase 7 — Templates and a test lead (person; agent can navigate).**
+1. `$APP/templates`: edit and **Save** all four templates (first outreach and the three follow-ups). Replace
+   the sample signature name in the defaults. Consider adding one plain opt-out line
+   (section 7 / deliverability).
+2. `$APP/add-lead`: add a test lead, then use **Run pipeline now** on the dashboard until it reaches
+   `DRAFTED`. Open Gmail → Drafts, send the first email to yourself, then use **Follow-up 1** and confirm the
+   draft sits in the same thread.
+
+**Phase 8 — Final check.** `$APP/api/health` → `ok: true`, `fully_connected: true`, and, once the schedule has
+started, `cron_looks_alive: true`. Also check the sending domain's records (section 10.8).
+
+### 12.5 Prompt to give the browser agent
+
+Copy this, fill in the two placeholders, and open these tabs first: the new **Vercel** project, the new
+**GitHub** repository, **Google Cloud Console** (signed in as the business account), and the app's `$APP`.
+
+```text
+You are helping set up the "obsys" project on new accounts. Read the repository README, section 12
+("Fresh install on new accounts") and follow it phase by phase, using sections 10 and 11 for the Google
+details. My stable address is: <PASTE $APP HERE>. My business Google account is: <PASTE ADDRESS HERE>.
+
+Rules:
+- Do the navigation and the non-secret settings yourself.
+- Never type, paste or store any secret, key or password — GOOGLE_CLIENT_SECRET, TOKEN_ENCRYPTION_KEY,
+  CRON_SECRET, database URLs. When one is needed, stop, say exactly which field, and wait for me.
+- Do not sign in for me, accept terms, approve Google's consent screen, or pay for anything. Stop and ask.
+- After each phase, open <$APP>/api/health and report every value that is false or unexpected before moving on.
+- Do not click Redeploy on an old deployment; only redeploy the newest one.
+- If something doesn't match this README, stop and describe what you see instead of guessing.
+```
+
+### 12.6 Reading `/api/health`
+
+`GET $APP/api/health` returns JSON with no secret values:
+
+| Field | Meaning |
+|---|---|
+| `ok` / `ready_to_connect_gmail` | Every required variable is set and the database tables exist |
+| `env.*` | Each variable present. `token_encryption_key_valid` = 32 bytes. `google_redirect_uri_shape_ok` = https and the right path. `google_redirect_uri_matches_this_address` = it matches the address you opened |
+| `database.reachable` / `tables_ready` | The database answers and the tables were created by the build |
+| `connection.gmail_connected` / `sheet_connected` | Gmail and the Sheet are linked |
+| `fully_connected` | Both are linked and the setup is complete |
+| `templates` | Whether the first-outreach template and how many follow-up templates are saved |
+| `last_pipeline_run` | Minutes since the last run and its status |
+| `cron_looks_alive` | `true` if a run happened in the last 15 minutes; `null` until Gmail and the Sheet are connected; `false` means the GitHub schedule is not firing |
+| `version` | The commit this deployment was built from |

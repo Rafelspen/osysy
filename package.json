@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/migrate.js --soft && next build",
     "start": "next start",
     "lint": "next lint",
-    "migrate": "node scripts/migrate.js"
+    "migrate": "node scripts/migrate.js",
+    "gen:secrets": "node scripts/gen-secrets.js"
   },
   "dependencies": {
     "google-auth-library": "^9.11.0",
