@@ -581,14 +581,22 @@ Internal setup), a new GitHub account and a new Vercel account (signing up to Ve
 
 **Phase 2 — Vercel: project, stable address, database, secrets.**
 1. *(person)* Vercel → **Add New → Project → Import Git Repository**; authorize GitHub when asked and pick
-   the new repository. Framework should say **Next.js**. Click **Deploy**. The first build succeeds even
-   without a database — the setup pages will simply say what is missing.
-2. *(agent)* **Stable address:** Project → **Settings → Domains → Add**, enter the name you want, ending in
-   `.vercel.app`, assign it to **Production**. This address always follows the newest production build, so
-   nothing goes stale. Write it down as `$APP`.
+   the new repository. Click **Deploy**. The first build succeeds even without a database — the setup pages
+   will simply say what is missing.
+   *Known pitfall:* an imported project can come up with **Framework Preset = Other**. Then Vercel treats the
+   repo as a plain project and the build fails with a message about a `functions` pattern that "doesn't match
+   any Serverless Functions". `vercel.json` in this repo already contains `{"framework": "nextjs"}`, which
+   overrides the preset, so no dashboard change is needed — but if you ever see that error, check that file.
+2. *(agent)* **Stable address:** every Vercel project already has a short production address of the form
+   `<project-name>.vercel.app` (see **Settings → Domains**). It is public and always follows the newest
+   production build, so nothing goes stale. Use it as `$APP`. If you want a different name, **Add** another
+   `.vercel.app` name there and assign it to **Production**.
+   Do **not** use the longer addresses `<project>-<team>.vercel.app`, `<project>-git-main-<team>.vercel.app`
+   or the per-deployment ones: on a new account these sit behind a Vercel login page, so Google and the
+   scheduler can't reach them.
    *Verify:* `curl -s -o /dev/null -w "%{http_code}\n" $APP/api/health` must print `200`. If it redirects to a
-   Vercel login page, open **Settings → Deployment Protection** and make production reachable without login
-   (Google and GitHub must be able to reach it).
+   Vercel login page, you are on one of the protected addresses (or open **Settings → Deployment Protection**
+   and make production reachable without login).
 3. *(person accepts terms; agent navigates)* **Database:** Project → **Storage → Create Database → Neon →
    Free plan**, region the same as the functions (for example `iad1`), authentication **off**, connect it to
    **all environments**. The person accepts Neon's terms. This adds `DATABASE_URL` and the other database
