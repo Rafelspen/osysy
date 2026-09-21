@@ -1,6 +1,3 @@
 {
-  "functions": {
-    "src/app/api/pipeline/tick/route.ts": { "maxDuration": 60 },
-    "src/app/api/pipeline/run-now/route.ts": { "maxDuration": 60 }
-  }
+  "framework": "nextjs"
 }
