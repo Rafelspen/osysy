@@ -6,3 +6,12 @@ body {
   background-color: #f8fafc;
   color: #0f172a;
 }
+
+/* Small logo mark before "obsys" in the header. Hidden by default (Classic);
+   a theme opts in with `.<theme-class> .brand-orb { display: inline-block; ... }`. */
+.brand-orb {
+  display: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+}

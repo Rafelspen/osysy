@@ -1,0 +1,338 @@
+/*
+ * "Deep Current" theme — a second dark theme: fuller pill-shaped stat cards with
+ * sparkle accents, a more pronounced flowing-wave background, a glowing logo
+ * mark, and a highlighted current-page nav link. Styling only, scoped to
+ * body.tidal, same rule as hydro-theme.css: it changes no markup or behaviour.
+ */
+
+body.tidal {
+  --t-aqua: #22e0ff;
+  --t-violet: #6a6bff;
+  --t-mint: #1de9b6;
+  --t-glass-rim: rgba(255, 255, 255, 0.18);
+  color: #e9fbff;
+  font-family: Inter, "SF Pro Display", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #04202a;
+  background-image:
+    radial-gradient(1000px 640px at 10% -10%, rgba(34, 224, 255, 0.22), transparent 60%),
+    radial-gradient(900px 620px at 100% 0%, rgba(106, 107, 255, 0.20), transparent 58%),
+    radial-gradient(1100px 820px at 50% 115%, rgba(29, 233, 182, 0.18), transparent 62%),
+    linear-gradient(180deg, #032530 0%, #042831 50%, #031b22 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ---- Flowing current: broad wave bands + drifting glow (one fixed layer) --- */
+body.tidal::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(122deg, rgba(150, 240, 255, 0.05) 0 3px, transparent 3px 90px),
+    repeating-linear-gradient(122deg, rgba(120, 220, 255, 0.035) 0 2px, transparent 2px 140px),
+    radial-gradient(620px 380px at 25% 30%, rgba(140, 240, 255, 0.14), transparent 70%),
+    radial-gradient(760px 480px at 78% 60%, rgba(106, 107, 255, 0.14), transparent 70%),
+    radial-gradient(680px 420px at 55% 90%, rgba(29, 233, 182, 0.12), transparent 70%);
+  mix-blend-mode: screen;
+  animation: tidal-flow 75s ease-in-out infinite alternate;
+}
+
+/* ---- Drifting bubble rings + sparks ------------------------------------------ */
+body.tidal::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 6px, transparent 55%, rgba(170, 245, 255, 0.35) 56%, transparent 62%),
+    radial-gradient(circle 9px, transparent 60%, rgba(140, 230, 255, 0.28) 61%, transparent 68%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.5) 0 1.5px, transparent 2.4px),
+    radial-gradient(circle, rgba(150, 235, 255, 0.4) 0 1.1px, transparent 1.8px);
+  background-size: 340px 380px, 480px 520px, 260px 300px, 400px 440px;
+  background-position: 60px 80px, 260px 260px, 40px 40px, 300px 120px;
+  opacity: 0.6;
+  animation: tidal-rise 80s linear infinite;
+}
+
+@keyframes tidal-flow {
+  from { transform: translate3d(-3%, -1%, 0) rotate(0deg); }
+  to { transform: translate3d(3%, 2%, 0) rotate(0.6deg); }
+}
+@keyframes tidal-rise {
+  from { background-position: 60px 80px, 260px 260px, 40px 40px, 300px 120px; }
+  to { background-position: 60px -300px, 260px -260px, 40px -560px, 300px -680px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.tidal::before, body.tidal::after { animation: none; }
+}
+
+/* ---- Text -------------------------------------------------------------------- */
+.tidal .text-slate-900 { color: #f4feff; }
+.tidal .text-slate-800 { color: #e9fbff; }
+.tidal .text-slate-700 { color: #d6f2fa; }
+.tidal .text-slate-600 { color: #b6dfe9; }
+.tidal .text-slate-500 { color: #9bc3cf; }
+.tidal .text-slate-400 { color: #83a6b2; }
+.tidal .text-slate-300 { color: #6c8e99; }
+.tidal .hover\:text-slate-900:hover,
+.tidal .hover\:text-slate-800:hover,
+.tidal .hover\:text-slate-700:hover,
+.tidal .hover\:text-slate-600:hover { color: var(--t-aqua); }
+.tidal h1, .tidal h2, .tidal h3 {
+  color: #f4feff;
+  text-shadow: 0 0 18px rgba(34, 224, 255, 0.32);
+}
+.tidal a { text-underline-offset: 3px; }
+.tidal main a:not([class*="bg-"]):not([class*="border"]) { color: #86e6ff; }
+.tidal ::selection { background: rgba(34, 224, 255, 0.35); color: #fff; }
+
+/* ---- Top bar + logo mark + active nav link ------------------------------------ */
+.tidal header.bg-white {
+  background: linear-gradient(180deg, rgba(6, 34, 44, 0.75), rgba(6, 34, 44, 0.48));
+  border-bottom: 1px solid rgba(34, 224, 255, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 30px rgba(0, 24, 30, 0.35), inset 0 -1px 0 rgba(34, 224, 255, 0.1);
+}
+.tidal header .font-semibold {
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 14px rgba(34, 224, 255, 0.7);
+}
+.tidal .brand-orb {
+  display: inline-block;
+  background: radial-gradient(circle at 32% 30%, #ecffff, #22e0ff 45%, #023244 100%);
+  box-shadow: 0 0 10px rgba(34, 224, 255, 0.9), 0 0 2px rgba(255, 255, 255, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.5);
+}
+.tidal .nav-link[aria-current="page"] {
+  color: #baf9e6;
+  text-shadow: 0 0 10px rgba(29, 233, 182, 0.75);
+  border-bottom: 2px solid rgba(29, 233, 182, 0.85);
+  padding-bottom: 2px;
+}
+
+/* ---- Panels: cards, table wrapper, side panel ---------------------------------- */
+.tidal .rounded-lg.bg-white {
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(0, 24, 30, 0.6));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--t-glass-rim);
+  box-shadow: 0 18px 50px rgba(0, 34, 40, 0.45), inset 0 1px 0 rgba(140, 240, 255, 0.3);
+}
+.tidal .bg-white { background-color: rgba(6, 34, 44, 0.45); }
+.tidal .bg-slate-50 { background-color: rgba(34, 224, 255, 0.06); }
+.tidal .bg-slate-100 { background-color: rgba(200, 240, 250, 0.1); }
+.tidal .hover\:bg-slate-50:hover { background-color: rgba(34, 224, 255, 0.12); }
+.tidal .border-slate-100 { border-color: rgba(255, 255, 255, 0.07); }
+.tidal .border-slate-200 { border-color: rgba(255, 255, 255, 0.16); }
+.tidal .border-slate-300 { border-color: rgba(140, 230, 255, 0.35); }
+.tidal .border-transparent { border-color: transparent; }
+
+/* ---- Metric cards: full pill shape with a sparkle on every card ----------------- */
+.tidal .grid.grid-cols-3 > div {
+  position: relative;
+  border-radius: 9999px;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid rgba(140, 230, 255, 0.4);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 38%, rgba(0, 24, 30, 0.1) 100%),
+    linear-gradient(135deg, rgba(0, 100, 120, 0.45), rgba(0, 24, 40, 0.65));
+  box-shadow: 0 10px 26px rgba(0, 24, 30, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -8px 16px rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: visible;
+}
+.tidal .grid.grid-cols-3 > div::after {
+  content: "\2726";
+  position: absolute;
+  top: 6px;
+  right: 14px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.85), 0 0 10px rgba(34, 224, 255, 0.6);
+}
+.tidal .grid.grid-cols-3 > div:hover {
+  border-color: rgba(140, 240, 255, 0.7);
+  box-shadow: 0 10px 30px rgba(34, 224, 255, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -8px 16px rgba(0, 0, 0, 0.2);
+}
+.tidal .grid.grid-cols-3 > div p:first-child { color: rgba(210, 245, 255, 0.68); letter-spacing: 0.1em; }
+.tidal .grid.grid-cols-3 > div p:last-child { color: #f4feff; text-shadow: 0 0 14px rgba(34, 224, 255, 0.55); }
+/* the last card (DRAFTED) is the highlighted one */
+.tidal .grid.grid-cols-3 > div:last-child {
+  border-color: rgba(150, 250, 255, 0.8);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(34, 224, 255, 0.35), transparent 65%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.05) 38%, rgba(0, 24, 30, 0.1) 100%),
+    linear-gradient(135deg, rgba(0, 130, 150, 0.55), rgba(0, 34, 60, 0.7));
+  box-shadow: 0 0 26px rgba(34, 224, 255, 0.35), 0 10px 26px rgba(0, 24, 30, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.tidal .grid.grid-cols-3 > div:last-child::after { font-size: 14px; }
+.tidal .grid.grid-cols-3 > div:last-child p:first-child::before {
+  content: "\2726  ";
+  color: var(--t-aqua);
+  text-shadow: 0 0 8px var(--t-aqua);
+}
+.tidal .grid.grid-cols-3 > div:last-child p:last-child {
+  color: #e879ff;
+  text-shadow: 0 0 16px rgba(217, 70, 239, 0.8);
+}
+
+/* ---- Table ---------------------------------------------------------------------- */
+.tidal table thead {
+  background: rgba(34, 224, 255, 0.05);
+  color: rgba(210, 245, 255, 0.6);
+  letter-spacing: 0.08em;
+}
+.tidal table tbody tr { transition: background-color 0.15s ease; }
+.tidal table tbody tr:hover { background-color: rgba(34, 224, 255, 0.05); }
+
+/* ---- Badges / pills --------------------------------------------------------------- */
+.tidal .rounded-full[class*="bg-"] {
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.tidal .bg-green-100, .tidal .bg-green-50 { background-color: rgba(29, 233, 182, 0.16); }
+.tidal .bg-green-100.rounded-full {
+  background: linear-gradient(180deg, rgba(29, 233, 182, 0.32), rgba(29, 233, 182, 0.1));
+  box-shadow: inset 0 0 0 1px rgba(29, 233, 182, 0.5), 0 0 12px rgba(29, 233, 182, 0.28);
+}
+.tidal .text-green-800 { color: #7dffd6; }
+.tidal .border-green-200, .tidal .border-green-300 { border-color: rgba(29, 233, 182, 0.45); }
+
+.tidal .bg-red-100, .tidal .bg-red-50 { background-color: rgba(255, 82, 82, 0.16); }
+.tidal .bg-red-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 82, 82, 0.3), rgba(255, 82, 82, 0.1));
+  box-shadow: inset 0 0 0 1px rgba(255, 110, 110, 0.5), 0 0 12px rgba(255, 82, 82, 0.25);
+}
+.tidal .text-red-800, .tidal .text-red-700 { color: #ff8a80; }
+.tidal .border-red-200, .tidal .border-red-300 { border-color: rgba(255, 110, 110, 0.45); }
+
+.tidal .bg-amber-100, .tidal .bg-amber-50 { background-color: rgba(180, 110, 40, 0.35); }
+.tidal .bg-amber-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 152, 0, 0.32), rgba(180, 110, 40, 0.18));
+  box-shadow: inset 0 0 0 1px rgba(255, 152, 0, 0.55), 0 0 12px rgba(255, 152, 0, 0.22);
+}
+.tidal .text-amber-800, .tidal .text-amber-900 { color: #ffc107; }
+.tidal .border-amber-200 { border-color: rgba(255, 170, 0, 0.5); }
+
+.tidal .bg-blue-100, .tidal .bg-blue-50 { background-color: rgba(106, 107, 255, 0.2); }
+.tidal .text-blue-800, .tidal .text-blue-900 { color: #b7c0ff; }
+.tidal .border-blue-200, .tidal .border-blue-300 { border-color: rgba(140, 230, 255, 0.5); }
+.tidal .border-blue-600 { border-color: var(--t-aqua); }
+.tidal .bg-blue-600 { background-color: #4b4dff; }
+.tidal .hover\:bg-blue-100:hover { background-color: rgba(34, 224, 255, 0.25); }
+
+.tidal .bg-indigo-100 { background-color: rgba(106, 107, 255, 0.22); }
+.tidal .text-indigo-800 { color: #c2c4ff; }
+.tidal .bg-purple-100 { background-color: rgba(217, 70, 239, 0.2); }
+.tidal .text-purple-800 { color: #f0a6ff; }
+
+/* ---- Buttons ------------------------------------------------------------------------- */
+.tidal .bg-slate-900.text-white {
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #4b4dff, #22e0ff);
+  color: #04203a;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 15px rgba(34, 224, 255, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: box-shadow 0.15s ease, filter 0.15s ease;
+}
+.tidal .bg-slate-900.text-white:hover:not(:disabled) {
+  background: linear-gradient(90deg, #6a6bff, #4df0ff);
+  box-shadow: 0 0 24px rgba(34, 224, 255, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.tidal .bg-slate-900.text-white:disabled { box-shadow: none; filter: saturate(0.6); }
+
+/* secondary buttons: dark glass with an aqua rim */
+.tidal button.border-slate-300,
+.tidal a.border-slate-300 {
+  border-radius: 9999px;
+  background: rgba(6, 34, 44, 0.55);
+  border-color: rgba(140, 230, 255, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+.tidal button.border-slate-300:hover:not(:disabled),
+.tidal a.border-slate-300:hover {
+  background: rgba(34, 224, 255, 0.14);
+  border-color: rgba(140, 240, 255, 0.85);
+  box-shadow: 0 0 14px rgba(34, 224, 255, 0.35), inset 0 0 12px rgba(34, 224, 255, 0.12);
+}
+.tidal button.border-blue-300 { border-radius: 9999px; }
+
+/* small action buttons in table rows (rounded-md text-xs) */
+.tidal td button.rounded-md, .tidal td a.rounded-md { border-radius: 16px; }
+
+/* reconnect (red) button */
+.tidal .bg-red-700 {
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #ff5252, #d32f2f);
+  box-shadow: 0 0 14px rgba(255, 82, 82, 0.5);
+}
+.tidal .hover\:bg-red-800:hover { background: linear-gradient(90deg, #ff6e6e, #e53935); }
+.tidal .hover\:bg-red-50:hover { background-color: rgba(255, 82, 82, 0.16); }
+
+/* ---- Alerts / callouts ---------------------------------------------------------------- */
+.tidal .rounded-md.border.px-4.py-3 {
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 24, 30, 0.35);
+}
+.tidal .rounded-md.border.border-amber-200 {
+  background: rgba(60, 40, 20, 0.6);
+  border: 1px solid rgba(255, 170, 0, 0.5);
+  color: #ffd98a;
+}
+.tidal .rounded-md.border.border-amber-200::before { content: "\26A0\FE0E  "; color: #ffc107; }
+
+/* ---- Forms -------------------------------------------------------------------------------- */
+.tidal input, .tidal textarea, .tidal select {
+  background-color: rgba(4, 26, 34, 0.6);
+  color: #eafeff;
+  border-color: rgba(140, 230, 255, 0.35);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tidal input::placeholder, .tidal textarea::placeholder { color: rgba(182, 223, 233, 0.5); }
+.tidal input:focus, .tidal textarea:focus, .tidal select:focus {
+  outline: none;
+  border-color: var(--t-aqua);
+  box-shadow: 0 0 0 3px rgba(34, 224, 255, 0.22), 0 0 16px rgba(34, 224, 255, 0.25);
+}
+.tidal select option { background: #062430; color: #eafeff; }
+.tidal input[type="checkbox"], .tidal input[type="radio"] { accent-color: var(--t-aqua); }
+
+/* ---- Email popup + lead details dialog -------------------------------------------------------- */
+.tidal [data-email-popover] {
+  background: linear-gradient(135deg, rgba(12, 50, 62, 0.96), rgba(4, 22, 28, 0.97));
+  border: 1px solid rgba(140, 230, 255, 0.45);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 24px rgba(34, 224, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.tidal [role="dialog"][aria-labelledby="lead-details-title"] {
+  background: linear-gradient(135deg, rgba(14, 56, 70, 0.97), rgba(4, 22, 28, 0.98));
+  border: 1px solid rgba(140, 230, 255, 0.4);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 32px rgba(34, 224, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.tidal [role="dialog"] li.rounded-md.border { background: rgba(34, 224, 255, 0.04); }
+
+/* square selectors in the popup: the address rows and their tick boxes */
+.tidal [data-email-popover] button,
+.tidal [data-email-popover] button > span:first-child { border-radius: 0; }
+.tidal .shadow-lg { box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 24px rgba(34, 224, 255, 0.18); }
+
+/* ---- Misc -------------------------------------------------------------------------------------- */
+.tidal hr, .tidal .border-t, .tidal .border-b { border-color: rgba(255, 255, 255, 0.1); }
+.tidal code { color: #86e6ff; }
+.tidal footer { color: #6c8e99; }
+.tidal ::-webkit-scrollbar { width: 10px; height: 10px; }
+.tidal ::-webkit-scrollbar-thumb { background: rgba(140, 230, 255, 0.28); border-radius: 8px; }
+.tidal ::-webkit-scrollbar-track { background: rgba(0, 24, 30, 0.3); }

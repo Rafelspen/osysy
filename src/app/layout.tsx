@@ -3,6 +3,8 @@ import Link from "next/link";
 import Script from "next/script";
 import "./globals.css";
 import "./hydro-theme.css";
+import "./tidal-theme.css";
+import NavLinks from "./NavLinks";
 import ThemeSwitcher from "./ThemeSwitcher";
 import { DEFAULT_THEME, KNOWN_BODY_CLASSES, THEME_STORAGE_KEY, THEMES } from "@/lib/themes";
 
@@ -10,13 +12,6 @@ export const metadata: Metadata = {
   title: "obsys",
   description: "Control room for the automated cold-outreach pipeline",
 };
-
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/add-lead", label: "Add Lead" },
-  { href: "/templates", label: "Templates" },
-  { href: "/connect", label: "Connect" },
-];
 
 const DEFAULT_BODY_CLASS = THEMES.find((t) => t.id === DEFAULT_THEME)?.bodyClass ?? "";
 
@@ -43,13 +38,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="min-h-screen">
           <header className="border-b border-slate-200 bg-white">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-              <span className="font-semibold text-slate-900">obsys</span>
+              <span className="flex items-center gap-2 font-semibold text-slate-900">
+                <span aria-hidden className="brand-orb" />
+                obsys
+              </span>
               <nav className="flex items-center gap-4 text-sm">
-                {NAV_ITEMS.map((item) => (
-                  <Link key={item.href} href={item.href} className="text-slate-600 hover:text-slate-900">
-                    {item.label}
-                  </Link>
-                ))}
+                <NavLinks />
                 <ThemeSwitcher />
               </nav>
             </div>
