@@ -569,7 +569,7 @@ export default function DashboardPage() {
             <tr>
               <th className="px-4 py-2">Company</th>
               <th className="px-4 py-2">Website</th>
-              <th className="px-4 py-2">Stage</th>
+              <th className="min-w-[125px] whitespace-nowrap px-4 py-2">Stage</th>
               <th className="min-w-[110px] whitespace-nowrap px-4 py-2">MX/Domain</th>
               <th className="min-w-[120px] whitespace-nowrap px-4 py-2">Email Verified</th>
               <th className="px-4 py-2">Error</th>
@@ -615,17 +615,19 @@ export default function DashboardPage() {
                   </td>
                   <td className="px-4 py-2 text-slate-600">{lead.websiteUrl}</td>
                   <td className="px-4 py-2">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_COLORS[lead.stage] ?? "bg-slate-100 text-slate-600"}`}>
-                      {lead.stage || "—"}
-                    </span>
-                    {(lead.abVariant === "A" || lead.abVariant === "B") && (
-                      <span
-                        title={`This lead's email sequence is using Variant ${lead.abVariant} (A/B test, set on the Templates page)`}
-                        className="ml-1.5 inline-block rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500"
-                      >
-                        {lead.abVariant}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_COLORS[lead.stage] ?? "bg-slate-100 text-slate-600"}`}>
+                        {lead.stage || "—"}
                       </span>
-                    )}
+                      {(lead.abVariant === "A" || lead.abVariant === "B") && (
+                        <span
+                          title={`This lead's email sequence is using Variant ${lead.abVariant} (A/B test, set on the Templates page)`}
+                          className="inline-block rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500"
+                        >
+                          {lead.abVariant}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-2">
                     {mx ? (
