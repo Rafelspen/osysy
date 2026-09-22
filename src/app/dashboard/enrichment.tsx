@@ -166,14 +166,21 @@ export function EnrichmentModal(props: {
           )}
           {groups.map(({ lead, rows }) => (
             <div key={lead.rowNumber} className="rounded-md border border-slate-200 p-3">
-              <p className="mb-2 text-sm font-semibold text-slate-800">
-                {lead.companyName || lead.websiteUrl} <span className="font-normal text-slate-400">· Sheet row {lead.rowNumber}</span>
+              <p className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800">
+                <span>
+                  {lead.companyName || lead.websiteUrl} <span className="font-normal text-slate-400">· Sheet row {lead.rowNumber}</span>
+                </span>
+                {tab === "needs" && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                    {rows.filter((r) => !r.checked).length}/{rows.length} needs enrichment
+                  </span>
+                )}
               </p>
               <ul className="space-y-1.5">
                 {rows.map(({ email, checks, checked }) => (
                   <li key={email} className="flex flex-wrap items-center gap-2">
                     {!checked ? (
-                      <label className="flex min-w-0 items-center gap-2 text-sm text-slate-800">
+                      <label className="needs-enrichment-glow flex min-w-0 items-center gap-2 rounded-md px-2 py-1 text-sm text-slate-800">
                         <input
                           type="checkbox"
                           checked={props.isSelected(lead.rowNumber, email)}

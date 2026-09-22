@@ -319,3 +319,6 @@ body.hydro::after {
 .hydro ::-webkit-scrollbar { width: 10px; height: 10px; }
 .hydro ::-webkit-scrollbar-thumb { background: rgba(120, 230, 255, 0.28); border-radius: 8px; }
 .hydro ::-webkit-scrollbar-track { background: rgba(0, 20, 40, 0.3); }
+
+/* "Open & enrich": glow matches this theme's accent (aqua, rgb(0,229,255)). */
+.hydro .needs-enrichment-glow { --glow-rgb: 0, 229, 255; }

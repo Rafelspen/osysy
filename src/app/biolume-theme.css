@@ -399,3 +399,6 @@ body.biolume::after {
 .biolume ::-webkit-scrollbar { width: 10px; height: 10px; }
 .biolume ::-webkit-scrollbar-thumb { background: rgba(88, 255, 201, 0.24); border-radius: 8px; }
 .biolume ::-webkit-scrollbar-track { background: rgba(2, 16, 15, 0.3); }
+
+/* "Open & enrich": glow matches this theme's own bioluminescent teal-green (rgb(88,255,201)). */
+.biolume .needs-enrichment-glow { --glow-rgb: 88, 255, 201; }

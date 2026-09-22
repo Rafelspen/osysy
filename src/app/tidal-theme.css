@@ -336,3 +336,6 @@ body.tidal::after {
 .tidal ::-webkit-scrollbar { width: 10px; height: 10px; }
 .tidal ::-webkit-scrollbar-thumb { background: rgba(140, 230, 255, 0.28); border-radius: 8px; }
 .tidal ::-webkit-scrollbar-track { background: rgba(0, 24, 30, 0.3); }
+
+/* "Open & enrich": glow matches this theme's accent (aqua, rgb(34,224,255)). */
+.tidal .needs-enrichment-glow { --glow-rgb: 34, 224, 255; }

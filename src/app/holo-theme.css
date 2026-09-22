@@ -393,3 +393,6 @@ body.holo::after {
 .holo ::-webkit-scrollbar { width: 10px; height: 10px; }
 .holo ::-webkit-scrollbar-thumb { background: rgba(150, 230, 255, 0.26); border-radius: 8px; }
 .holo ::-webkit-scrollbar-track { background: rgba(3, 16, 26, 0.3); }
+
+/* "Open & enrich": glow matches this theme's accent (cyan, rgb(85,232,255)). */
+.holo .needs-enrichment-glow { --glow-rgb: 85, 232, 255; }

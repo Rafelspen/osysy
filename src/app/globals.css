@@ -15,3 +15,19 @@ body {
   height: 14px;
   border-radius: 9999px;
 }
+
+/* Slow glow pulse around an address that still needs enrichment (Open & enrich).
+   --glow-rgb is an "R, G, B" triplet; this default (a plain sky blue) applies in
+   Classic, and each dark theme overrides it to its own accent colour so the glow
+   always matches that theme rather than clashing with it. */
+.needs-enrichment-glow {
+  --glow-rgb: 56, 189, 248;
+  animation: needs-enrichment-pulse 2.6s ease-in-out infinite;
+}
+@keyframes needs-enrichment-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(var(--glow-rgb), 0.35), 0 0 6px 1px rgba(var(--glow-rgb), 0.2); }
+  50% { box-shadow: 0 0 0 1.5px rgba(var(--glow-rgb), 0.9), 0 0 16px 4px rgba(var(--glow-rgb), 0.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needs-enrichment-glow { animation: none; box-shadow: 0 0 0 1px rgba(var(--glow-rgb), 0.55); }
+}
