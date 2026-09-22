@@ -188,7 +188,10 @@ export function EnrichmentModal(props: {
                     )}
                     {checked ? (
                       <>
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-800">Enriched</span>
+                        {/* Blue on purpose: green is already the "Deliverable" verdict colour used right next to
+                            this by ResultChips, and this badge means something different ("already checked",
+                            regardless of the result) — a matching colour would read as if it meant the same thing. */}
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-800">Enriched</span>
                         <ResultChips checks={checks} />
                       </>
                     ) : (
