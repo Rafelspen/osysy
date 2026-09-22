@@ -184,7 +184,8 @@ same logic in `src/lib/pipeline-runner.ts`:
 1. Acquire `pipeline_lock` (90s lease) — skips the run if another tick is still in flight.
 2. Read all Sheet rows not yet `DRAFTED`, take up to 10.
 3. Advance each lead exactly one stage (`src/lib/pipeline.ts`): `SOURCED -> ENRICHED`
-   (email discovery), `ENRICHED -> VERIFIED` (sanity check), `VERIFIED -> OUTREACH`
+   (scrapes the company's own website for an email — skipped entirely if you already put
+   one in column D yourself, see section 8), `ENRICHED -> VERIFIED` (sanity check), `VERIFIED -> OUTREACH`
    (render template + spam check), `OUTREACH -> QA` (create/update Gmail draft — dedup via
    the stored `gmail_draft_id`, never a second draft), `QA -> DRAFTED` (re-fetch the draft
    and confirm it matches before marking done).
@@ -232,9 +233,9 @@ Columns A–Q, header row required, exact order:
 | A | Source | You |
 | B | Company Name | Pipeline (SOURCED) |
 | C | Website URL | You |
-| D | Official Email/TO | Pipeline (ENRICHED) |
-| E | Secondary Email/CC | Pipeline (ENRICHED) |
-| F | Another Email | Pipeline (ENRICHED) |
+| D | Official Email/TO | You (optional), else Pipeline (SOURCED) — leave blank to have the pipeline scrape the company's website for it; fill it in yourself (your own manual find, or a specific teammate's address) and the pipeline skips scraping entirely and never overwrites it |
+| E | Secondary Email/CC | You (optional) — the pipeline never writes here; scraping only ever fills column D |
+| F | Another Email | You (optional) — the pipeline never writes here; scraping only ever fills column D |
 | G | Email Name for greeting | Pipeline (SOURCED), defaults to Company Name |
 | H | Pipeline Stage | Pipeline — `SOURCED / ENRICHED / VERIFIED / OUTREACH / QA / DRAFTED` |
 | I | gmail_draft_id | Pipeline (OUTREACH) — dedup key, never create a 2nd draft |
@@ -255,7 +256,10 @@ If you connected your Sheet before these columns existed, add the header `mx_sta
 Follow-up drafts are created from the dashboard's **Action** column, never automatically and never sent. A follow-up is refused unless the thread proves the previous email was actually sent, and unless nobody has replied or bounced. It is drafted as `Re: <original subject>` with `In-Reply-To`/`References` set from the last sent message, which is what makes Gmail attach it to the same thread. Leads whose first email was drafted and already sent before column L existed can't be recovered, so their follow-ups can't be threaded.
 
 Adding a lead via `/add-lead` writes A + C and sets H = `SOURCED`; everything else starts
-blank and is filled by the pipeline.
+blank and is filled by the pipeline. If you want to skip website scraping for a lead —
+you already found or checked the email yourself — add it to column D directly in the
+Sheet before the pipeline reaches it (`/add-lead` itself has no field for it); see column D
+in the table above.
 
 ## 9. Out of scope
 

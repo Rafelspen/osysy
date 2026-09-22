@@ -39,6 +39,20 @@ function companyNameOrFallback(lead: LeadRow, discovered: string | null): string
 }
 
 async function advanceSourced(lead: LeadRow): Promise<StageResult> {
+  // A manually-provided email in column D (TO) is authoritative — skip the
+  // website scraper entirely rather than second-guess or overwrite it. This
+  // covers checking a company's site yourself, or putting a specific
+  // teammate's address in D instead of a generic company one; scraping only
+  // ever runs for leads where you haven't already supplied one.
+  if (lead.officialEmail.trim()) {
+    const companyName = companyNameOrFallback(lead, null);
+    const greetingName = lead.greetingName.trim() || companyName;
+    return {
+      rowNumber: lead.rowNumber,
+      updates: { companyName, greetingName, stage: "ENRICHED", lastError: "" },
+    };
+  }
+
   if (!lead.websiteUrl.trim()) {
     return { rowNumber: lead.rowNumber, updates: { lastError: "no website URL provided" } };
   }
@@ -65,14 +79,15 @@ async function advanceSourced(lead: LeadRow): Promise<StageResult> {
     };
   }
 
+  // Scraping only ever fills column D, even when discovery found more than
+  // one address — E and F stay untouched by the pipeline so they're fully
+  // yours to fill in by hand (the same reasoning as the manual-D skip above).
   return {
     rowNumber: lead.rowNumber,
     updates: {
       companyName,
       greetingName,
       officialEmail: discovery.emails[0] ?? "",
-      secondaryEmail: discovery.emails[1] ?? "",
-      anotherEmail: discovery.emails[2] ?? "",
       stage: "ENRICHED",
       lastError: "",
     },
