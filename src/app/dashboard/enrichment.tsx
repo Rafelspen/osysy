@@ -26,10 +26,17 @@ const PROVIDER_LABEL: Record<ApiProviderId, string> = { zerobounce: "ZeroBounce"
 export type EnrichJob = { lead: VLead; emails: string[] };
 
 export type EnrichRow = { email: string; checks: EmailChecks | undefined; checked: boolean };
-export type EnrichGroup = { lead: VLead; rows: EnrichRow[]; hasUnchecked: boolean };
+export type EnrichGroup = { lead: VLead; rows: EnrichRow[]; hasUnchecked: boolean; hasChecked: boolean };
 
 // Pure — split out so it's covered by the same lib-style tests as the rest of the
 // verification logic, without needing to render the modal.
+//
+// Both tabs show a lead's FULL address list (each row renders its own state) — only
+// which leads appear differs: "needs" wants leads with something left to check,
+// "enriched" wants leads with something already checked. That way a partially-done
+// lead shows up in both tabs with the same "N/M needs enrichment" count and the same
+// rows, so you're never missing the addresses still outstanding just because you're
+// looking at the Enriched view.
 export function groupLeadsForTab(leads: VLead[], tab: "needs" | "enriched"): EnrichGroup[] {
   return leads
     .map((lead) => {
@@ -38,10 +45,9 @@ export function groupLeadsForTab(leads: VLead[], tab: "needs" | "enriched"): Enr
         const checks = store[normalizeEmail(email)];
         return { email, checks, checked: overallVerdict(checks) !== null };
       });
-      const shown = tab === "needs" ? rows : rows.filter((r) => r.checked);
-      return { lead, rows: shown, hasUnchecked: rows.some((r) => !r.checked) };
+      return { lead, rows, hasUnchecked: rows.some((r) => !r.checked), hasChecked: rows.some((r) => r.checked) };
     })
-    .filter((g) => (tab === "needs" ? g.hasUnchecked : g.rows.length > 0));
+    .filter((g) => (tab === "needs" ? g.hasUnchecked : g.hasChecked));
 }
 
 // Selected addresses that still need enrichment, across every lead — never an
@@ -170,11 +176,18 @@ export function EnrichmentModal(props: {
                 <span>
                   {lead.companyName || lead.websiteUrl} <span className="font-normal text-slate-400">· Sheet row {lead.rowNumber}</span>
                 </span>
-                {tab === "needs" && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                    {rows.filter((r) => !r.checked).length}/{rows.length} needs enrichment
-                  </span>
-                )}
+                {(() => {
+                  const unchecked = rows.filter((r) => !r.checked).length;
+                  return (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        unchecked > 0 ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"
+                      }`}
+                    >
+                      {unchecked}/{rows.length} needs enrichment
+                    </span>
+                  );
+                })()}
               </p>
               <ul className="space-y-1.5">
                 {rows.map(({ email, checks, checked }) => (
@@ -211,69 +224,69 @@ export function EnrichmentModal(props: {
           ))}
         </div>
 
-        {tab === "needs" && (
-          <div className="space-y-2 border-t border-slate-100 pt-3">
-            <div className="flex flex-wrap items-center gap-3">
+        {/* Always shown, not just on the Needs-enrichment tab — the Enriched tab can
+            list unchecked addresses too now, so it needs the same action bar. */}
+        <div className="space-y-2 border-t border-slate-100 pt-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={props.running || selectedCount === 0 || providerOrder.length === 0}
+              onClick={() => props.onEnrich(selectedJobs, providerOrder)}
+              title={
+                selectedCount === 0
+                  ? "Tick at least one address below"
+                  : providerOrder.length === 0
+                    ? "Choose at least one service"
+                    : `Enrich ${selectedCount} address${selectedCount === 1 ? "" : "es"}`
+              }
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {props.running ? "Enriching..." : `Enrich (${selectedCount} selected)`}
+            </button>
+            {props.running && (
               <button
                 type="button"
-                disabled={props.running || selectedCount === 0 || providerOrder.length === 0}
-                onClick={() => props.onEnrich(selectedJobs, providerOrder)}
-                title={
-                  selectedCount === 0
-                    ? "Tick at least one address below"
-                    : providerOrder.length === 0
-                      ? "Choose at least one service"
-                      : `Enrich ${selectedCount} address${selectedCount === 1 ? "" : "es"}`
-                }
-                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={props.onStop}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                {props.running ? "Enriching..." : `Enrich (${selectedCount} selected)`}
+                Stop
               </button>
-              {props.running && (
-                <button
-                  type="button"
-                  onClick={props.onStop}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Stop
-                </button>
-              )}
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-                {PROVIDER_IDS.map((id) => {
-                  const available = providerAvailable(id, props.providers);
-                  const info = props.providers.find((p) => p.id === id);
-                  const reason =
-                    id === "clay" && info && info.kind !== "api"
-                      ? "Clay is in manual mode — set CLAY_API_KEY and CLAY_FUNCTION_ID to include it here"
-                      : `${PROVIDER_LABEL[id]} isn't set up yet`;
-                  return (
-                    <label key={id} className={`flex items-center gap-1.5 ${available ? "" : "opacity-40"}`} title={available ? `Include ${PROVIDER_LABEL[id]}` : reason}>
-                      <input
-                        type="checkbox"
-                        disabled={!available || props.running}
-                        checked={checkedProviders.has(id)}
-                        onChange={(e) =>
-                          setCheckedProviders((prev) => {
-                            const next = new Set(prev);
-                            if (e.target.checked) next.add(id);
-                            else next.delete(id);
-                            return next;
-                          })
-                        }
-                      />
-                      {PROVIDER_LABEL[id]}
-                    </label>
-                  );
-                })}
-              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+              {PROVIDER_IDS.map((id) => {
+                const available = providerAvailable(id, props.providers);
+                const info = props.providers.find((p) => p.id === id);
+                const reason =
+                  id === "clay" && info && info.kind !== "api"
+                    ? "Clay is in manual mode — set CLAY_API_KEY and CLAY_FUNCTION_ID to include it here"
+                    : `${PROVIDER_LABEL[id]} isn't set up yet`;
+                return (
+                  <label key={id} className={`flex items-center gap-1.5 ${available ? "" : "opacity-40"}`} title={available ? `Include ${PROVIDER_LABEL[id]}` : reason}>
+                    <input
+                      type="checkbox"
+                      disabled={!available || props.running}
+                      checked={checkedProviders.has(id)}
+                      onChange={(e) =>
+                        setCheckedProviders((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(id);
+                          else next.delete(id);
+                          return next;
+                        })
+                      }
+                    />
+                    {PROVIDER_LABEL[id]}
+                  </label>
+                );
+              })}
             </div>
-            <p className="text-[11px] leading-relaxed text-slate-400">
-              Checked services run in order — ZeroBounce, then Hunter, then Clay — as a fallback chain: whatever the
-              first one doesn&rsquo;t resolve (a failure, or an Unknown result) is retried with the next one you
-              checked. Each attempt spends that service&rsquo;s credits.
-            </p>
           </div>
-        )}
+          <p className="text-[11px] leading-relaxed text-slate-400">
+            Checked services run in order — ZeroBounce, then Hunter, then Clay — as a fallback chain: whatever the
+            first one doesn&rsquo;t resolve (a failure, or an Unknown result) is retried with the next one you
+            checked. Each attempt spends that service&rsquo;s credits.
+          </p>
+        </div>
       </div>
     </div>
   );

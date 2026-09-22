@@ -734,18 +734,19 @@ always agree. It closes with **Esc**, the **×**, or a click outside.
 **Bulk "Open & enrich".** Click **Open & enrich →** on the **Reach** card (below the stage counters) to check many
 addresses across many leads in one go, with a fallback chain between services:
 
-1. It opens on **Needs enrichment**: one block per lead with at least one unchecked address, showing that lead's
-   full address list — already-checked addresses appear as a green **Enriched** pill (not selectable here; use the
-   row's own badge/popup or the lead-details popup to touch those), and unchecked ones as a checkbox you can tick.
-   Tick addresses across as many leads as you like.
-2. Switch to **Enriched** to review, read-only, what's already been checked and its result.
-3. Tick the services to use — **ZeroBounce**, **Hunter**, **Clay** (only ones that are set up can be ticked; Clay
+1. **Needs enrichment** lists every lead with at least one unchecked address; **Enriched** lists every lead with at
+   least one already-checked one. Either tab shows that lead's **full** address list, with a count badge —
+   `2/3 needs enrichment` — so a partly-done lead shows the same thing, and the same outstanding addresses, in both
+   tabs. Already-checked addresses show a blue **Enriched** pill and their result (not selectable here — use the
+   row's own badge/popup or the lead-details popup to touch those); unchecked ones show a checkbox, gently
+   glowing, that you can tick. Tick addresses across as many leads as you like, from either tab.
+2. Tick the services to use — **ZeroBounce**, **Hunter**, **Clay** (only ones that are set up can be ticked; Clay
    only if its Public API is configured, not in manual mode) — then click **Enrich (N selected)**.
-4. They run as a **fallback chain**, always in the order ZeroBounce → Hunter → Clay regardless of tick order: the
+3. They run as a **fallback chain**, always in the order ZeroBounce → Hunter → Clay regardless of tick order: the
    first ticked service checks every selected address; whatever it doesn't resolve — a failed check, or an
    **Unknown** result — is retried with the next ticked service, and so on. An address stops being retried as soon
    as one service gives a clear answer (Deliverable, Undeliverable or Risky).
-5. Progress and the final count show at the bottom; **Stop** ends it after the address in progress. It calls the
+4. Progress and the final count show at the bottom; **Stop** ends it after the address in progress. It calls the
    same per-lead check endpoint the row buttons use (batched to its 3-address limit), so it's exactly as safe and
    spends credits the same way — nothing new on the server. While it runs, the pipeline buttons and the per-row
    check buttons are disabled (both can write to the Sheet, so only one runs at a time).
