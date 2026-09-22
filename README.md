@@ -32,6 +32,33 @@ Copy `.env.example` to `.env.local` and fill in:
 | `TOKEN_ENCRYPTION_KEY` | 32-byte key, base64. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `CRON_SECRET` | Any random string. Sent as the `x-cron-secret` header (or as a Bearer token by Vercel Cron) to `/api/pipeline/tick` |
 
+### 1.1 Dashboard login (optional, recommended before the URL is shared with anyone)
+
+By default this app has **no login** — anyone with the URL can open the dashboard, see your leads, draft emails
+and spend your ZeroBounce/Hunter/Clay credits. A simple username + password gate (`src/middleware.ts`) covers
+every page and API route with one check — **off** until you set two variables, so nothing changes unless you turn
+it on:
+
+| Var | Notes |
+|---|---|
+| `BASIC_AUTH_USER` | Any username you pick |
+| `BASIC_AUTH_PASSWORD` | Any password you pick — not your Google password, just a new one for this app |
+
+Add both in Vercel (**Settings → Environment Variables**, Production, as **normal** variables) and redeploy. The
+browser then shows its own native login prompt the first time you open the site, and remembers it for that
+browser. There's no "forgot password" flow — change the Vercel variables and redeploy to reset it, and there's no
+per-person account (it's one shared login, matching the rest of this single-user app).
+
+Three things stay reachable without it, because the caller isn't a browser that could have logged in:
+`/api/pipeline/tick` (your scheduler, gated by its own `CRON_SECRET` instead), `/api/oauth/google/callback`
+(Google's own redirect, gated by its one-time authorization code), and `/privacy` + `/terms` (kept public on
+purpose, so Google's OAuth review and anyone who gets an email from you can read them).
+
+Local dev is unaffected unless you also set these two variables in `.env.local`.
+
+**Turn this on last**, after everything else in this README is working — every `curl .../api/health` example here
+assumes no login yet. Once it's on, add `-u username:password` to those, or a browser's native prompt handles it.
+
 ## 2. Google Cloud Console setup
 
 > This is the short version. The complete, current walkthrough (including the Internal setup for a Workspace
@@ -124,10 +151,10 @@ to trigger a tick manually instead of waiting on the scheduler.
 
 ## 6. How it works
 
-`POST /api/pipeline/tick` (secret-gated) and `POST /api/pipeline/run-now` (same-origin
-manual trigger from `/dashboard`, no secret — this app has no login system by design and
-that route can only ever advance leads) both run the same logic in
-`src/lib/pipeline-runner.ts`:
+`POST /api/pipeline/tick` (secret-gated) and `POST /api/pipeline/run-now` (same-origin manual
+trigger from `/dashboard`, no secret of its own — it can only ever advance leads, and it
+sits behind the optional dashboard login (section 1.1) when that's turned on) both run the
+same logic in `src/lib/pipeline-runner.ts`:
 
 1. Acquire `pipeline_lock` (90s lease) — skips the run if another tick is still in flight.
 2. Read all Sheet rows not yet `DRAFTED`, take up to 10.
@@ -552,6 +579,7 @@ is needed.
 | `TOKEN_ENCRYPTION_KEY` | Vercel | Generate below (32 random bytes, base64) |
 | `CRON_SECRET` | Vercel **and** the GitHub repo secret of the same name | Generate below. Must be **identical** in both places. |
 | `APP_URL` | GitHub repo secret only | `$APP` |
+| `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` | Vercel (optional) | Any username/password you pick — see section 1.1. Recommended once `$APP` is something other people could stumble onto. |
 
 Generate the two random values on any computer with Node.js (nothing is stored or sent anywhere):
 
@@ -846,10 +874,11 @@ of truth.
 
 ### 13.7 Safety notes
 
-- These buttons **spend your credits**, and — like the rest of this app — the dashboard has no login. The check
-  endpoint therefore refuses cross-site requests, refuses any address that isn't on that lead, limits each request
-  to 3 addresses, and skips addresses a service already checked, so the most an outsider could spend is one credit
-  per distinct address already in your Sheet. Add a login before the app is public.
+- These buttons **spend your credits**. Turn on the dashboard login (section 1.1) before sharing the URL with
+  anyone, or before it's otherwise reachable by strangers. Even without it, the check endpoint refuses cross-site
+  requests, refuses any address that isn't on that lead, limits each request to 3 addresses, and skips addresses a
+  service already checked, so the most an outsider could spend is one credit per distinct address already in your
+  Sheet.
 - API keys stay on the server and are never put in messages, logs or the health page.
 - **Open & enrich** can spend credits across many leads in one click — it's still capped the same way underneath (3
   addresses per request, only a lead's own addresses, cached results skipped), but check your selection before
