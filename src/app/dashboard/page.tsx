@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProviderStatus } from "@/lib/email-verifier";
 import { leadEmails, parseStore, summarizeLead, type ProviderId, type Verdict } from "@/lib/verification-store";
 import { EmailPopover, SelectedEmailsPanel, useSelection, VerifyButtons } from "./verification";
+import { EmailStatusCard, ReachSignalCard } from "./summary";
 import {
   FOLLOW_UPS,
   LeadDetailsDialog,
@@ -484,6 +485,11 @@ export default function DashboardPage() {
             <p className="text-xl font-semibold text-slate-900">{counts[stage] ?? 0}</p>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <EmailStatusCard leads={leads} />
+        <ReachSignalCard leads={leads} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">

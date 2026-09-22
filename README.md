@@ -704,6 +704,13 @@ service, because a hosting platform like Vercel cannot make the mail-server conn
 **Nothing is checked automatically.** The pipeline never spends verification credits. You choose which addresses
 to check, and with which service, from the dashboard — so the free monthly credits go where you want them.
 
+**Email status and Reach.** Below the stage counters, two cards summarize verification across every lead currently
+on the dashboard: **Email status** (what share of leads have an address found at all, and how many addresses are
+Valid/Risky/Not found), and **Reach**, a single signal-strength reading of how deliverable the Sheet is right now
+— deliverable ÷ (deliverable + risky + undeliverable) among addresses actually checked so far; addresses never
+checked aren't held against it. Both are computed live from the same data as the table and the per-lead popup, so
+they can never disagree with what's shown elsewhere; nothing new is fetched or stored (`src/app/dashboard/summary.tsx`).
+
 ### 13.1 Using it
 
 1. **Hover** the badge in a lead's **Email Verified** column (or click it). A popup lists that lead's addresses.
