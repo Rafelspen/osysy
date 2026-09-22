@@ -7,7 +7,7 @@
 // is the original plain look and needs no CSS of its own — bodyClass "" means
 // "no extra styling".
 
-export type ThemeId = "hydro" | "tidal" | "abyss" | "holo" | "classic";
+export type ThemeId = "hydro" | "tidal" | "abyss" | "holo" | "biolume" | "classic";
 
 export type ThemeMeta = {
   id: ThemeId;
@@ -21,6 +21,7 @@ export const THEMES: ThemeMeta[] = [
   { id: "tidal", label: "Deep Current", bodyClass: "tidal", swatch: "linear-gradient(135deg, #22e0ff, #6a6bff 55%, #04202a)" },
   { id: "abyss", label: "Abyssal Glass", bodyClass: "abyss", swatch: "linear-gradient(135deg, #72f5f0, #075779 55%, #04131f)" },
   { id: "holo", label: "Aquatic Hologram", bodyClass: "holo", swatch: "linear-gradient(135deg, #55e8ff, #9b8bff 50%, #ff9cf2 85%)" },
+  { id: "biolume", label: "Bioluminescent Deep", bodyClass: "biolume", swatch: "linear-gradient(135deg, #58ffc9, #33d9ff 55%, #02100f)" },
   { id: "classic", label: "Classic (light)", bodyClass: "", swatch: "linear-gradient(135deg, #ffffff, #cbd5e1)" },
 ];
 

@@ -1,0 +1,401 @@
+/*
+ * "Bioluminescent Deep" theme — a dark teal-to-deep-blue fluid ocean, with
+ * glowing refractive bubbles (a soft glow inside a bright rim, like light
+ * bending through water), drifting bioluminescent wisps that pulse gently
+ * (living light, not a static effect), caustic ripples, and translucent
+ * glassmorphism panels. Its own colour family — bioluminescent teal-green —
+ * keeps it visually distinct from the other dark themes. Styling only,
+ * scoped to body.biolume: it changes no markup or behaviour.
+ *
+ * Four fixed decorative layers are needed (caustics, bubbles, wisps, fine
+ * sparkle) but an element only has two pseudo-elements (::before/::after).
+ * Two live on <body>, two more on the page's own ".min-h-screen" wrapper
+ * (already in the DOM, from layout.tsx) — all four are `position: fixed`, so
+ * they stack by z-index regardless of which element they're attached to.
+ */
+
+body.biolume {
+  --b-ink: #eafcf7;
+  --b-glow: #58ffc9;
+  --b-glow2: #33d9ff;
+  --b-deep: #063a3a;
+  --b-deep-blue: #0a2a52;
+  --b-glass-rim: rgba(88, 255, 201, 0.26);
+  color: var(--b-ink);
+  font-family: Inter, "SF Pro Display", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #02100f;
+  background-image:
+    radial-gradient(1100px 760px at 12% -10%, rgba(88, 255, 201, 0.16), transparent 60%),
+    radial-gradient(950px 700px at 92% 15%, rgba(10, 60, 140, 0.28), transparent 60%),
+    radial-gradient(1000px 800px at 50% 112%, rgba(6, 100, 90, 0.24), transparent 62%),
+    linear-gradient(160deg, #021311 0%, #052033 55%, #01100e 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ---- Layer 1: caustic light patterns, teal-blue tint ------------------------------- */
+body.biolume::before {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: -4;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1300' height='1300'><filter id='c' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='0.009 0.014' numOctaves='3' seed='31'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.65  0 0 0 0 0.55  -9 0 0 0 2.6'/></filter><rect width='100%25' height='100%25' filter='url(%23c)'/></svg>");
+  background-size: 1300px 1300px;
+  mix-blend-mode: screen;
+  opacity: 0.28;
+  animation: biolume-drift 85s ease-in-out infinite alternate;
+}
+
+/* ---- Layer 2: glowing refractive bubbles — a soft core plus a bright rim ------------ */
+body.biolume::after {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: -3;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 46px, rgba(88, 255, 201, 0.16) 0%, rgba(88, 255, 201, 0.03) 55%, transparent 62%),
+    radial-gradient(circle 46px, transparent 66%, rgba(150, 255, 224, 0.4) 68%, transparent 74%),
+    radial-gradient(circle 26px, rgba(51, 217, 255, 0.14) 0%, rgba(51, 217, 255, 0.02) 55%, transparent 62%),
+    radial-gradient(circle 26px, transparent 66%, rgba(150, 235, 255, 0.35) 68%, transparent 74%),
+    radial-gradient(circle 14px, rgba(88, 255, 201, 0.2) 0%, transparent 60%),
+    radial-gradient(circle 14px, transparent 65%, rgba(180, 255, 230, 0.4) 68%, transparent 75%);
+  background-size: 620px 700px, 620px 700px, 460px 540px, 460px 540px, 340px 400px, 340px 400px;
+  background-position: 60px 520px, 60px 520px, 300px 140px, 300px 140px, 460px 460px, 460px 460px;
+  animation: biolume-rise 100s linear infinite, biolume-pulse-glow 7s ease-in-out infinite;
+}
+
+/* ---- Layer 3: bioluminescent wisps — thin drifting glow streaks that pulse ---------- */
+.biolume .min-h-screen::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  pointer-events: none;
+  transform: rotate(-8deg);
+  background-image:
+    radial-gradient(5px 260px at 20% 30%, rgba(88, 255, 201, 0.16), transparent 70%),
+    radial-gradient(4px 220px at 62% 55%, rgba(51, 217, 255, 0.14), transparent 70%),
+    radial-gradient(4px 200px at 40% 78%, rgba(88, 255, 201, 0.12), transparent 70%),
+    radial-gradient(3px 180px at 82% 20%, rgba(150, 255, 224, 0.1), transparent 70%);
+  mix-blend-mode: screen;
+  animation: biolume-wisp-drift 130s ease-in-out infinite alternate, biolume-pulse-glow 9s ease-in-out infinite reverse;
+}
+
+/* ---- Layer 4: fine sparkle, kept sparse ---------------------------------------------- */
+.biolume .min-h-screen::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.45) 0 1.2px, transparent 2px),
+    radial-gradient(circle, rgba(150, 255, 224, 0.35) 0 1px, transparent 1.8px);
+  background-size: 420px 480px, 560px 620px;
+  background-position: 70px 90px, 340px 220px;
+  opacity: 0.5;
+  animation: biolume-rise 75s linear infinite;
+}
+
+@keyframes biolume-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 2%, 0) scale(1.05); }
+}
+@keyframes biolume-rise {
+  from { background-position: 60px 520px, 60px 520px, 300px 140px, 300px 140px, 460px 460px, 460px 460px; }
+  to { background-position: 60px 60px, 60px 60px, 300px -460px, 300px -460px, 460px -240px, 460px -240px; }
+}
+@keyframes biolume-wisp-drift {
+  from { transform: rotate(-8deg) translate3d(-3%, -2%, 0); }
+  to { transform: rotate(-6deg) translate3d(3%, 2%, 0); }
+}
+/* the "living light" flicker — a slow, gentle brighten/dim, never a hard blink */
+@keyframes biolume-pulse-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.biolume::before, body.biolume::after,
+  .biolume .min-h-screen::before, .biolume .min-h-screen::after { animation: none; }
+}
+
+/* ---- Text ------------------------------------------------------------------------------ */
+.biolume .text-slate-900 { color: #f4fffb; }
+.biolume .text-slate-800 { color: var(--b-ink); }
+.biolume .text-slate-700 { color: #d3f3ea; }
+.biolume .text-slate-600 { color: #a8d6c8; }
+.biolume .text-slate-500 { color: #8cb6ab; }
+.biolume .text-slate-400 { color: #729a90; }
+.biolume .text-slate-300 { color: #5e8178; }
+.biolume .hover\:text-slate-900:hover,
+.biolume .hover\:text-slate-800:hover,
+.biolume .hover\:text-slate-700:hover,
+.biolume .hover\:text-slate-600:hover { color: var(--b-glow); }
+.biolume h1, .biolume h2, .biolume h3 {
+  color: #f4fffb;
+  text-shadow: 0 0 20px rgba(88, 255, 201, 0.3);
+}
+.biolume a { text-underline-offset: 3px; }
+.biolume main a:not([class*="bg-"]):not([class*="border"]) { color: #8ff5d4; }
+.biolume ::selection { background: rgba(88, 255, 201, 0.3); color: #04231d; }
+
+/* ---- Top bar + logo mark + active nav link --------------------------------------------- */
+.biolume header.bg-white {
+  background: linear-gradient(180deg, rgba(3, 24, 22, 0.72), rgba(3, 24, 22, 0.42));
+  border-bottom: 1px solid rgba(88, 255, 201, 0.18);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: 0 10px 32px rgba(1, 12, 10, 0.4);
+}
+.biolume header .font-semibold {
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 14px rgba(88, 255, 201, 0.6);
+}
+.biolume .brand-orb {
+  display: inline-block;
+  background: radial-gradient(circle at 32% 30%, #f2fff9, var(--b-glow) 45%, var(--b-deep) 100%);
+  box-shadow: 0 0 10px rgba(88, 255, 201, 0.75), inset 0 0 4px rgba(255, 255, 255, 0.55);
+  animation: biolume-pulse-glow 4s ease-in-out infinite;
+}
+.biolume .nav-link[aria-current="page"] {
+  color: #b7ffe4;
+  text-shadow: 0 0 10px rgba(88, 255, 201, 0.6);
+  border-bottom: 2px solid rgba(88, 255, 201, 0.7);
+  padding-bottom: 2px;
+}
+
+/* ---- Panels: cards, table wrapper, side panel — translucent glassmorphism --------------- */
+.biolume .rounded-lg.bg-white {
+  border-radius: 24px;
+  background: linear-gradient(160deg, rgba(6, 58, 58, 0.26), rgba(2, 16, 15, 0.34));
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--b-glass-rim);
+  box-shadow: 0 22px 64px rgba(1, 12, 10, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 30px rgba(88, 255, 201, 0.06);
+}
+.biolume .bg-white { background-color: rgba(4, 32, 30, 0.4); }
+.biolume .bg-slate-50 { background-color: rgba(88, 255, 201, 0.05); }
+.biolume .bg-slate-100 { background-color: rgba(200, 240, 230, 0.09); }
+.biolume .hover\:bg-slate-50:hover { background-color: rgba(88, 255, 201, 0.1); }
+.biolume .border-slate-100 { border-color: rgba(255, 255, 255, 0.06); }
+.biolume .border-slate-200 { border-color: rgba(255, 255, 255, 0.14); }
+.biolume .border-slate-300 { border-color: rgba(88, 255, 201, 0.32); }
+.biolume .border-transparent { border-color: transparent; }
+
+/* ---- Metric cards: glass with a slow "living light" glow pulse on the rim -------------- */
+.biolume .grid.grid-cols-3 > div {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(88, 255, 201, 0.32);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(2, 16, 15, 0.06) 100%),
+    linear-gradient(160deg, rgba(6, 70, 65, 0.42), rgba(2, 16, 15, 0.6));
+  box-shadow: 0 12px 28px rgba(1, 12, 10, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -10px 18px rgba(0, 0, 0, 0.22);
+  animation: biolume-card-pulse 6s ease-in-out infinite;
+}
+.biolume .grid.grid-cols-3 > div::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 28%, rgba(255, 255, 255, 0.1) 45%, transparent 64%);
+  pointer-events: none;
+}
+@keyframes biolume-card-pulse {
+  0%, 100% { box-shadow: 0 12px 28px rgba(1, 12, 10, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -10px 18px rgba(0, 0, 0, 0.22), 0 0 0 rgba(88, 255, 201, 0); }
+  50% { box-shadow: 0 12px 30px rgba(1, 12, 10, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -10px 18px rgba(0, 0, 0, 0.2), 0 0 22px rgba(88, 255, 201, 0.22); }
+}
+.biolume .grid.grid-cols-3 > div:hover {
+  border-color: rgba(88, 255, 201, 0.6);
+}
+.biolume .grid.grid-cols-3 > div p:first-child { color: rgba(200, 245, 230, 0.62); letter-spacing: 0.1em; }
+.biolume .grid.grid-cols-3 > div p:last-child { color: #f4fffb; text-shadow: 0 0 12px rgba(88, 255, 201, 0.4); }
+/* the last card (DRAFTED) is the highlighted one */
+.biolume .grid.grid-cols-3 > div:last-child {
+  border-color: rgba(88, 255, 201, 0.6);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(88, 255, 201, 0.24), transparent 65%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 40%, rgba(2, 16, 15, 0.06) 100%),
+    linear-gradient(160deg, rgba(6, 100, 90, 0.5), rgba(3, 20, 34, 0.66));
+}
+.biolume .grid.grid-cols-3 > div:last-child p:first-child::before {
+  content: "\2726  ";
+  color: var(--b-glow);
+  text-shadow: 0 0 8px var(--b-glow);
+}
+.biolume .grid.grid-cols-3 > div:last-child p:last-child {
+  color: #9fdcff;
+  text-shadow: 0 0 16px rgba(51, 217, 255, 0.7);
+}
+
+/* ---- Table ---------------------------------------------------------------------------- */
+.biolume table thead {
+  background: rgba(88, 255, 201, 0.04);
+  color: rgba(200, 245, 230, 0.55);
+  letter-spacing: 0.08em;
+}
+.biolume table tbody tr { transition: background-color 0.2s ease; }
+.biolume table tbody tr:hover { background-color: rgba(88, 255, 201, 0.045); }
+
+/* ---- Badges / pills --------------------------------------------------------------------- */
+.biolume .rounded-full[class*="bg-"] {
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.biolume .bg-green-100, .biolume .bg-green-50 { background-color: rgba(88, 255, 201, 0.15); }
+.biolume .bg-green-100.rounded-full {
+  background: linear-gradient(180deg, rgba(88, 255, 201, 0.3), rgba(88, 255, 201, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(88, 255, 201, 0.5), 0 0 12px rgba(88, 255, 201, 0.25);
+}
+.biolume .text-green-800 { color: #a8ffe0; }
+.biolume .border-green-200, .biolume .border-green-300 { border-color: rgba(88, 255, 201, 0.45); }
+
+.biolume .bg-red-100, .biolume .bg-red-50 { background-color: rgba(255, 110, 110, 0.14); }
+.biolume .bg-red-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 110, 110, 0.28), rgba(255, 110, 110, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(255, 130, 130, 0.45), 0 0 10px rgba(255, 110, 110, 0.2);
+}
+.biolume .text-red-800, .biolume .text-red-700 { color: #ffb0ab; }
+.biolume .border-red-200, .biolume .border-red-300 { border-color: rgba(255, 130, 130, 0.4); }
+
+.biolume .bg-amber-100, .biolume .bg-amber-50 { background-color: rgba(180, 140, 60, 0.3); }
+.biolume .bg-amber-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 180, 90, 0.28), rgba(180, 140, 60, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(255, 180, 90, 0.45), 0 0 10px rgba(255, 180, 90, 0.18);
+}
+.biolume .text-amber-800, .biolume .text-amber-900 { color: #ffd6a0; }
+.biolume .border-amber-200 { border-color: rgba(255, 180, 90, 0.45); }
+
+.biolume .bg-blue-100, .biolume .bg-blue-50 { background-color: rgba(51, 217, 255, 0.16); }
+.biolume .text-blue-800, .biolume .text-blue-900 { color: #a3ebff; }
+.biolume .border-blue-200, .biolume .border-blue-300 { border-color: rgba(51, 217, 255, 0.45); }
+.biolume .border-blue-600 { border-color: var(--b-glow2); }
+.biolume .bg-blue-600 { background-color: #1c8fb0; }
+.biolume .hover\:bg-blue-100:hover { background-color: rgba(51, 217, 255, 0.22); }
+
+.biolume .bg-indigo-100 { background-color: rgba(88, 130, 240, 0.18); }
+.biolume .text-indigo-800 { color: #c2ccff; }
+.biolume .bg-purple-100 { background-color: rgba(160, 130, 240, 0.16); }
+.biolume .text-purple-800 { color: #d8c4ff; }
+
+/* ---- Buttons: frosted glass with a soft living-light glow pulse ------------------------ */
+.biolume .bg-slate-900.text-white {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: linear-gradient(120deg, var(--b-glow), var(--b-glow2));
+  color: #04231d;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 26px rgba(1, 12, 10, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: filter 0.2s ease;
+  animation: biolume-button-pulse 5s ease-in-out infinite;
+}
+.biolume .bg-slate-900.text-white::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.4) 46%, transparent 62%);
+  pointer-events: none;
+}
+@keyframes biolume-button-pulse {
+  0%, 100% { box-shadow: 0 10px 26px rgba(1, 12, 10, 0.4), 0 0 14px rgba(88, 255, 201, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+  50% { box-shadow: 0 10px 26px rgba(1, 12, 10, 0.4), 0 0 24px rgba(88, 255, 201, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+}
+.biolume .bg-slate-900.text-white:hover:not(:disabled) { filter: brightness(1.08); }
+.biolume .bg-slate-900.text-white:disabled { box-shadow: none; filter: saturate(0.5); animation: none; }
+
+/* secondary buttons: dark frosted glass with a thin glow-teal rim */
+.biolume button.border-slate-300,
+.biolume a.border-slate-300 {
+  border-radius: 9999px;
+  background: rgba(3, 28, 26, 0.5);
+  border-color: rgba(88, 255, 201, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+.biolume button.border-slate-300:hover:not(:disabled),
+.biolume a.border-slate-300:hover {
+  background: rgba(88, 255, 201, 0.12);
+  border-color: rgba(88, 255, 201, 0.7);
+  box-shadow: 0 0 12px rgba(88, 255, 201, 0.25), inset 0 0 10px rgba(88, 255, 201, 0.1);
+}
+.biolume button.border-blue-300 { border-radius: 9999px; }
+
+/* small action buttons in table rows (rounded-md text-xs) */
+.biolume td button.rounded-md, .biolume td a.rounded-md { border-radius: 16px; }
+
+/* reconnect (red) button */
+.biolume .bg-red-700 {
+  border-radius: 9999px;
+  background: linear-gradient(160deg, #ff8a80, #c1443b);
+  box-shadow: 0 0 12px rgba(255, 110, 110, 0.4);
+}
+.biolume .hover\:bg-red-800:hover { background: linear-gradient(160deg, #ffa199, #d5544a); }
+.biolume .hover\:bg-red-50:hover { background-color: rgba(255, 110, 110, 0.14); }
+
+/* ---- Alerts / callouts ----------------------------------------------------------------- */
+.biolume .rounded-md.border.px-4.py-3 {
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(1, 12, 10, 0.35);
+}
+.biolume .rounded-md.border.border-amber-200 {
+  background: rgba(52, 38, 20, 0.55);
+  border: 1px solid rgba(255, 180, 90, 0.45);
+  color: #ffdca7;
+}
+.biolume .rounded-md.border.border-amber-200::before { content: "\26A0\FE0E  "; color: #ffd6a0; }
+
+/* ---- Forms ------------------------------------------------------------------------------- */
+.biolume input, .biolume textarea, .biolume select {
+  background-color: rgba(2, 26, 24, 0.55);
+  color: #eafff8;
+  border-color: rgba(88, 255, 201, 0.3);
+  border-radius: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.biolume input::placeholder, .biolume textarea::placeholder { color: rgba(168, 214, 200, 0.5); }
+.biolume input:focus, .biolume textarea:focus, .biolume select:focus {
+  outline: none;
+  border-color: var(--b-glow);
+  box-shadow: 0 0 0 3px rgba(88, 255, 201, 0.18), 0 0 14px rgba(88, 255, 201, 0.22);
+}
+.biolume select option { background: #04231f; color: #eafff8; }
+.biolume input[type="checkbox"], .biolume input[type="radio"] { accent-color: var(--b-glow); }
+
+/* ---- Email popup + lead details dialog: dense glass so text always reads clearly ------------ */
+.biolume [data-email-popover] {
+  background: linear-gradient(160deg, rgba(7, 52, 50, 0.94), rgba(2, 16, 15, 0.96));
+  border: 1px solid rgba(88, 255, 201, 0.38);
+  border-radius: 16px;
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 26px rgba(88, 255, 201, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.biolume [role="dialog"][aria-labelledby="lead-details-title"] {
+  background: linear-gradient(160deg, rgba(8, 58, 56, 0.95), rgba(2, 16, 15, 0.97));
+  border: 1px solid rgba(88, 255, 201, 0.32);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 34px rgba(88, 255, 201, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.biolume [role="dialog"] li.rounded-md.border { background: rgba(88, 255, 201, 0.035); }
+
+/* square selectors in the popup: the address rows and their tick boxes */
+.biolume [data-email-popover] button,
+.biolume [data-email-popover] button > span:first-child { border-radius: 0; }
+.biolume .shadow-lg { box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 26px rgba(88, 255, 201, 0.16); }
+
+/* ---- Misc ---------------------------------------------------------------------------------- */
+.biolume hr, .biolume .border-t, .biolume .border-b { border-color: rgba(255, 255, 255, 0.08); }
+.biolume code { color: var(--b-glow); }
+.biolume footer { color: #5e8178; }
+.biolume ::-webkit-scrollbar { width: 10px; height: 10px; }
+.biolume ::-webkit-scrollbar-thumb { background: rgba(88, 255, 201, 0.24); border-radius: 8px; }
+.biolume ::-webkit-scrollbar-track { background: rgba(2, 16, 15, 0.3); }
