@@ -199,13 +199,6 @@ export function ReachSignalCard({
           </button>
         )}
       </div>
-      {s.totalAddresses > 0 && (
-        <p className="mt-2 text-xs text-slate-500">
-          <span className="font-semibold text-slate-700">{s.totalAddresses}</span> address{s.totalAddresses === 1 ? "" : "es"} total —{" "}
-          <span className="font-semibold text-slate-700">{r.checked}</span> verified,{" "}
-          <span className="font-semibold text-slate-700">{s.unchecked}</span> need{s.unchecked === 1 ? "s" : ""} verification.
-        </p>
-      )}
       <div className="mt-3 flex items-center gap-3">
         <SignalBars tier={r.tier} bars={r.bars} />
         <span className="text-sm font-semibold text-slate-900">{r.label}</span>
@@ -215,6 +208,13 @@ export function ReachSignalCard({
           ? "Check some addresses (ZeroBounce, Hunter or Clay) to see how deliverable this Sheet is."
           : `${r.deliverable} of ${r.checked} checked address${r.checked === 1 ? "" : "es"} came back deliverable.`}
       </p>
+      {s.totalAddresses > 0 && (
+        <p className="mt-2 text-xs text-slate-500">
+          <span className="font-semibold text-slate-700">{s.totalAddresses}</span> address{s.totalAddresses === 1 ? "" : "es"} total —{" "}
+          <span className="font-semibold text-slate-700">{r.checked}</span> verified,{" "}
+          <span className="font-semibold text-slate-700">{s.unchecked}</span> need{s.unchecked === 1 ? "s" : ""} verification.
+        </p>
+      )}
     </div>
   );
 }
