@@ -10,6 +10,12 @@ in Gmail for manual review and send. Nothing is ever auto-sent.
 locally; a free GitHub account and a free Vercel account to deploy it; a Google account for the outreach mailbox.
 No prior experience with any of these is assumed — section 12 walks through every account and setting.
 
+**First, make it yours — edit `src/lib/site.ts`.** It sets the site name and the contact email shown publicly on
+the live `/privacy` and `/terms` pages (data-deletion requests go to that address). It currently holds the
+previous deployer's details, not a placeholder — **replace `CONTACT_EMAIL` with your own address** before you
+deploy, so you're not publishing someone else's email on your site. `SITE_NAME` and `LEGAL_UPDATED` are cosmetic;
+change them too if you like.
+
 **Got this project as a downloaded folder or a ZIP, not a `git clone`?** Turn it into your own GitHub repository
 first — Vercel deploys from GitHub, not from a folder on your computer:
 ```bash
@@ -632,6 +638,8 @@ Check `$APP/api/health` at the end of each phase (see 12.6). It returns only tru
 Internal setup), a new GitHub account and a new Vercel account (signing up to Vercel with GitHub is easiest).
 
 **Phase 1 — Put the code in the new GitHub account (person; agent can navigate).**
+0. **Edit `src/lib/site.ts` first** — `CONTACT_EMAIL` is shown publicly on your live `/privacy` and `/terms` pages;
+   set it to an address you own before anything is pushed or deployed (see "First, make it yours" above).
 1. If you already have this project on GitHub somewhere (for example moving it to a new business account): on the
    new account open `https://github.com/new/import`, paste the URL of the existing repository, name the new
    repository (for example `obsys`) and set it **Public** (see 12.2). GitHub copies it.
