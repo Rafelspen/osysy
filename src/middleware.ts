@@ -14,9 +14,9 @@ import { NextRequest, NextResponse } from "next/server";
 //     a username/password. Gating it would silently stop every automatic pipeline run.
 //   - /api/oauth/google/callback — Google redirects here itself after you approve access;
 //     it's protected by Google's own one-time authorization code, not this login.
-//   - /privacy, /terms — kept public on purpose (see README §"branding"/Google verification):
-//     Google's OAuth review, and anyone who receives a drafted email, can read these without
-//     needing your dashboard password.
+//   - /privacy, /terms — kept public because Google's OAuth consent screen and app review
+//     need to open the privacy policy link without hitting a login (README §1.1). Not
+//     linked from your outreach emails, so this isn't about email recipients.
 export const PUBLIC_PATHS = new Set(["/api/pipeline/tick", "/api/oauth/google/callback", "/privacy", "/terms"]);
 
 // Pure — decodes a "Basic <base64>" Authorization header and checks it against the

@@ -51,8 +51,9 @@ per-person account (it's one shared login, matching the rest of this single-user
 
 Three things stay reachable without it, because the caller isn't a browser that could have logged in:
 `/api/pipeline/tick` (your scheduler, gated by its own `CRON_SECRET` instead), `/api/oauth/google/callback`
-(Google's own redirect, gated by its one-time authorization code), and `/privacy` + `/terms` (kept public on
-purpose, so Google's OAuth review and anyone who gets an email from you can read them).
+(Google's own redirect, gated by its one-time authorization code), and `/privacy` + `/terms` (kept public because
+Google's OAuth consent screen and app review need to open the privacy policy link without hitting a login — these
+two pages aren't linked from your outreach emails, so this isn't about email recipients).
 
 Local dev is unaffected unless you also set these two variables in `.env.local`.
 
