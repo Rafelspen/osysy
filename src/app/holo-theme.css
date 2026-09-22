@@ -1,0 +1,395 @@
+/*
+ * "Aquatic Hologram" theme — translucent frosted liquid glass over an
+ * underwater holographic scene: volumetric light rays, brighter caustics, and
+ * a slow iridescent (cyan -> violet -> pink) shimmer on glass rims, buttons
+ * and the logo mark. Built on the same frosted-glass approach as Abyssal
+ * Glass, pushed further and made more luminous. Styling only, scoped to
+ * body.holo: it changes no markup or behaviour.
+ */
+
+body.holo {
+  --h-ink: #eef8ff;
+  --h-cyan: #55e8ff;
+  --h-violet: #9b8bff;
+  --h-pink: #ff9cf2;
+  --h-glass-rim: rgba(150, 230, 255, 0.3);
+  color: var(--h-ink);
+  font-family: Inter, "SF Pro Display", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #030f1c;
+  background-image:
+    radial-gradient(1200px 780px at 50% -14%, rgba(85, 232, 255, 0.24), transparent 60%),
+    radial-gradient(900px 680px at 96% 18%, rgba(155, 139, 255, 0.18), transparent 58%),
+    radial-gradient(950px 720px at 4% 92%, rgba(255, 156, 242, 0.1), transparent 58%),
+    linear-gradient(180deg, #020c17 0%, #051a2c 55%, #020b14 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ---- Volumetric light rays, descending from above --------------------------------- */
+body.holo::before {
+  content: "";
+  position: fixed;
+  inset: -12% -25%;
+  z-index: -3;
+  pointer-events: none;
+  background-image:
+    radial-gradient(90px 1200px at 18% -18%, rgba(150, 235, 255, 0.14), transparent 58%),
+    radial-gradient(120px 1300px at 42% -22%, rgba(180, 210, 255, 0.11), transparent 58%),
+    radial-gradient(80px 1150px at 63% -16%, rgba(200, 180, 255, 0.09), transparent 58%),
+    radial-gradient(70px 1050px at 84% -20%, rgba(255, 190, 250, 0.07), transparent 58%);
+  filter: blur(2px);
+  mix-blend-mode: screen;
+  animation: holo-sway 50s ease-in-out infinite alternate, holo-hue 90s linear infinite;
+}
+
+/* ---- Underwater caustics: brighter and livelier than Abyssal Glass ----------------- */
+body.holo::after {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: -2;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='1200'><filter id='c' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='0.010 0.016' numOctaves='3' seed='23'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.55  0 0 0 0 0.75  -9 0 0 0 2.6'/></filter><rect width='100%25' height='100%25' filter='url(%23c)'/></svg>");
+  background-size: 1500px 1500px;
+  mix-blend-mode: screen;
+  opacity: 0.28;
+  animation: holo-drift 70s ease-in-out infinite alternate;
+}
+
+/* ---- A few drifting bubbles and crystalline sparkles, kept sparse -------------------
+   (body only has two pseudo-elements, both used above, so this third ambient layer is
+   hung off the next element down — the page's own top-level wrapper div — instead.) */
+.holo .min-h-screen::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 5px, transparent 55%, rgba(210, 245, 255, 0.24) 56%, transparent 62%),
+    radial-gradient(circle 7px, transparent 60%, rgba(180, 210, 255, 0.18) 61%, transparent 68%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.5) 0 1.3px, transparent 2.2px),
+    radial-gradient(circle, rgba(230, 200, 255, 0.35) 0 1px, transparent 1.8px);
+  background-size: 560px 640px, 720px 800px, 420px 480px, 600px 680px;
+  background-position: 60px 100px, 320px 280px, 40px 30px, 360px 140px;
+  opacity: 0.4;
+  animation: abyss-rise 90s linear infinite;
+}
+
+@keyframes holo-sway {
+  from { transform: translate3d(-2%, 0, 0) rotate(-0.4deg); }
+  to { transform: translate3d(2%, 1.5%, 0) rotate(0.4deg); }
+}
+@keyframes holo-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 2%, 0) scale(1.05); }
+}
+@keyframes holo-hue {
+  from { filter: blur(2px) hue-rotate(0deg); }
+  to { filter: blur(2px) hue-rotate(360deg); }
+}
+@keyframes abyss-rise {
+  from { background-position: 60px 100px, 320px 280px, 40px 30px, 360px 140px; }
+  to { background-position: 60px -260px, 320px -280px, 40px -580px, 360px -700px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.holo::before, body.holo::after { animation: none; }
+}
+
+/* ---- Text --------------------------------------------------------------------------- */
+.holo .text-slate-900 { color: #f7fcff; }
+.holo .text-slate-800 { color: var(--h-ink); }
+.holo .text-slate-700 { color: #d9edf6; }
+.holo .text-slate-600 { color: #adcedb; }
+.holo .text-slate-500 { color: #90b3c0; }
+.holo .text-slate-400 { color: #7597a4; }
+.holo .text-slate-300 { color: #5f7d89; }
+.holo .hover\:text-slate-900:hover,
+.holo .hover\:text-slate-800:hover,
+.holo .hover\:text-slate-700:hover,
+.holo .hover\:text-slate-600:hover { color: var(--h-cyan); }
+.holo h1, .holo h2, .holo h3 {
+  color: #f7fcff;
+  text-shadow: 0 0 22px rgba(85, 232, 255, 0.28);
+}
+.holo a { text-underline-offset: 3px; }
+.holo main a:not([class*="bg-"]):not([class*="border"]) { color: #8fe6ff; }
+.holo ::selection { background: rgba(85, 232, 255, 0.32); color: #fff; }
+
+/* ---- Top bar + iridescent logo mark + shimmering active nav link -------------------- */
+.holo header.bg-white {
+  background: linear-gradient(180deg, rgba(3, 18, 32, 0.72), rgba(3, 18, 32, 0.42));
+  border-bottom: 1px solid rgba(150, 230, 255, 0.2);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: 0 10px 34px rgba(1, 8, 15, 0.4);
+}
+.holo header .font-semibold {
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 14px rgba(85, 232, 255, 0.6);
+}
+.holo .brand-orb {
+  display: inline-block;
+  background: conic-gradient(from 0deg, var(--h-cyan), var(--h-violet), var(--h-pink), var(--h-cyan));
+  box-shadow: 0 0 10px rgba(150, 200, 255, 0.6), inset 0 0 4px rgba(255, 255, 255, 0.6);
+  animation: holo-spin 10s linear infinite;
+}
+@keyframes holo-spin { to { transform: rotate(360deg); } }
+.holo .nav-link[aria-current="page"] {
+  color: #d6f3ff;
+  text-shadow: 0 0 10px rgba(85, 232, 255, 0.6);
+  border-bottom: 2px solid;
+  border-image: linear-gradient(90deg, var(--h-cyan), var(--h-violet), var(--h-pink)) 1;
+  padding-bottom: 2px;
+}
+
+/* ---- Panels: cards, table wrapper, side panel — liquid glass with a soft iridescent rim */
+.holo .rounded-lg.bg-white {
+  position: relative;
+  border-radius: 26px;
+  background: linear-gradient(160deg, rgba(20, 60, 95, 0.24), rgba(3, 16, 28, 0.32));
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--h-glass-rim);
+  box-shadow: 0 24px 70px rgba(1, 8, 15, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 30px rgba(85, 232, 255, 0.08);
+}
+.holo .bg-white { background-color: rgba(4, 24, 40, 0.42); }
+.holo .bg-slate-50 { background-color: rgba(85, 232, 255, 0.05); }
+.holo .bg-slate-100 { background-color: rgba(210, 235, 245, 0.09); }
+.holo .hover\:bg-slate-50:hover { background-color: rgba(85, 232, 255, 0.1); }
+.holo .border-slate-100 { border-color: rgba(255, 255, 255, 0.06); }
+.holo .border-slate-200 { border-color: rgba(255, 255, 255, 0.14); }
+.holo .border-slate-300 { border-color: rgba(150, 230, 255, 0.32); }
+.holo .border-transparent { border-color: transparent; }
+
+/* ---- Metric cards: frosted glass with a slow iridescent rim glow + one glossy streak - */
+.holo .grid.grid-cols-3 > div {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(150, 230, 255, 0.32);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(3, 16, 28, 0.06) 100%),
+    linear-gradient(160deg, rgba(20, 70, 105, 0.42), rgba(3, 14, 24, 0.6));
+  box-shadow: 0 12px 30px rgba(1, 8, 15, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -10px 18px rgba(0, 0, 0, 0.22);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.holo .grid.grid-cols-3 > div::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 26%, rgba(255, 255, 255, 0.12) 45%, transparent 66%);
+  pointer-events: none;
+}
+.holo .grid.grid-cols-3 > div::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from 0deg, var(--h-cyan), var(--h-violet), var(--h-pink), var(--h-cyan));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.4;
+  animation: holo-spin 14s linear infinite;
+  pointer-events: none;
+}
+.holo .grid.grid-cols-3 > div:hover {
+  border-color: rgba(150, 230, 255, 0.6);
+  box-shadow: 0 12px 34px rgba(85, 232, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -10px 18px rgba(0, 0, 0, 0.18);
+}
+.holo .grid.grid-cols-3 > div p:first-child { color: rgba(215, 240, 250, 0.62); letter-spacing: 0.1em; }
+.holo .grid.grid-cols-3 > div p:last-child { color: #f7fcff; text-shadow: 0 0 12px rgba(85, 232, 255, 0.42); }
+/* the last card (DRAFTED) is the highlighted one */
+.holo .grid.grid-cols-3 > div:last-child {
+  border-color: rgba(150, 230, 255, 0.6);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(85, 232, 255, 0.24), transparent 65%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.03) 40%, rgba(3, 16, 28, 0.06) 100%),
+    linear-gradient(160deg, rgba(30, 90, 125, 0.5), rgba(4, 18, 32, 0.66));
+  box-shadow: 0 0 30px rgba(85, 232, 255, 0.22), 0 12px 30px rgba(1, 8, 15, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+.holo .grid.grid-cols-3 > div:last-child::after { opacity: 0.7; }
+.holo .grid.grid-cols-3 > div:last-child p:first-child::before {
+  content: "\2726  ";
+  color: var(--h-cyan);
+  text-shadow: 0 0 8px var(--h-cyan);
+}
+.holo .grid.grid-cols-3 > div:last-child p:last-child {
+  color: #f2b4ff;
+  text-shadow: 0 0 16px rgba(255, 156, 242, 0.75);
+}
+
+/* ---- Table ---------------------------------------------------------------------------- */
+.holo table thead {
+  background: rgba(85, 232, 255, 0.04);
+  color: rgba(215, 240, 250, 0.55);
+  letter-spacing: 0.08em;
+}
+.holo table tbody tr { transition: background-color 0.2s ease; }
+.holo table tbody tr:hover { background-color: rgba(85, 232, 255, 0.045); }
+
+/* ---- Badges / pills --------------------------------------------------------------------- */
+.holo .rounded-full[class*="bg-"] {
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.holo .bg-green-100, .holo .bg-green-50 { background-color: rgba(110, 233, 200, 0.14); }
+.holo .bg-green-100.rounded-full {
+  background: linear-gradient(180deg, rgba(110, 233, 200, 0.26), rgba(110, 233, 200, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(110, 233, 200, 0.45), 0 0 10px rgba(110, 233, 200, 0.2);
+}
+.holo .text-green-800 { color: #adf3e0; }
+.holo .border-green-200, .holo .border-green-300 { border-color: rgba(110, 233, 200, 0.4); }
+
+.holo .bg-red-100, .holo .bg-red-50 { background-color: rgba(255, 120, 150, 0.14); }
+.holo .bg-red-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 120, 150, 0.26), rgba(255, 120, 150, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(255, 140, 165, 0.45), 0 0 10px rgba(255, 120, 150, 0.2);
+}
+.holo .text-red-800, .holo .text-red-700 { color: #ffb3c2; }
+.holo .border-red-200, .holo .border-red-300 { border-color: rgba(255, 140, 165, 0.4); }
+
+.holo .bg-amber-100, .holo .bg-amber-50 { background-color: rgba(200, 150, 80, 0.28); }
+.holo .bg-amber-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 190, 110, 0.28), rgba(200, 150, 80, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(255, 190, 110, 0.45), 0 0 10px rgba(255, 190, 110, 0.18);
+}
+.holo .text-amber-800, .holo .text-amber-900 { color: #ffd9a3; }
+.holo .border-amber-200 { border-color: rgba(255, 190, 110, 0.45); }
+
+.holo .bg-blue-100, .holo .bg-blue-50 { background-color: rgba(85, 232, 255, 0.14); }
+.holo .text-blue-800, .holo .text-blue-900 { color: #aeeeff; }
+.holo .border-blue-200, .holo .border-blue-300 { border-color: rgba(150, 230, 255, 0.45); }
+.holo .border-blue-600 { border-color: var(--h-cyan); }
+.holo .bg-blue-600 { background-color: #2fa9c2; }
+.holo .hover\:bg-blue-100:hover { background-color: rgba(85, 232, 255, 0.2); }
+
+.holo .bg-indigo-100 { background-color: rgba(155, 139, 255, 0.18); }
+.holo .text-indigo-800 { color: #cfc8ff; }
+.holo .bg-purple-100 { background-color: rgba(255, 156, 242, 0.16); }
+.holo .text-purple-800 { color: #ffc9f5; }
+
+/* ---- Buttons: frosted glass, holographic edge shimmer, a traveling specular streak ------- */
+.holo .bg-slate-900.text-white {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: linear-gradient(120deg, rgba(85, 232, 255, 0.9), rgba(155, 139, 255, 0.75), rgba(85, 232, 255, 0.9));
+  background-size: 220% 100%;
+  color: #041524;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 26px rgba(1, 8, 15, 0.4), 0 0 18px rgba(85, 232, 255, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: box-shadow 0.2s ease, filter 0.2s ease;
+  animation: holo-sheen 8s ease-in-out infinite;
+}
+.holo .bg-slate-900.text-white::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.4) 46%, transparent 62%);
+  pointer-events: none;
+}
+@keyframes holo-sheen {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.holo .bg-slate-900.text-white:hover:not(:disabled) {
+  box-shadow: 0 10px 30px rgba(1, 8, 15, 0.45), 0 0 26px rgba(85, 232, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.holo .bg-slate-900.text-white:disabled { box-shadow: none; filter: saturate(0.5); animation: none; }
+
+/* secondary buttons: dark frosted glass with a thin holo-cyan rim */
+.holo button.border-slate-300,
+.holo a.border-slate-300 {
+  border-radius: 9999px;
+  background: rgba(4, 22, 36, 0.5);
+  border-color: rgba(150, 230, 255, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+.holo button.border-slate-300:hover:not(:disabled),
+.holo a.border-slate-300:hover {
+  background: rgba(85, 232, 255, 0.12);
+  border-color: rgba(150, 230, 255, 0.7);
+  box-shadow: 0 0 12px rgba(85, 232, 255, 0.25), inset 0 0 10px rgba(85, 232, 255, 0.1);
+}
+.holo button.border-blue-300 { border-radius: 9999px; }
+
+/* small action buttons in table rows (rounded-md text-xs) */
+.holo td button.rounded-md, .holo td a.rounded-md { border-radius: 16px; }
+
+/* reconnect (red) button */
+.holo .bg-red-700 {
+  border-radius: 9999px;
+  background: linear-gradient(160deg, #ff93a8, #c94a63);
+  box-shadow: 0 0 12px rgba(255, 120, 150, 0.4);
+}
+.holo .hover\:bg-red-800:hover { background: linear-gradient(160deg, #ffa8ba, #d95d75); }
+.holo .hover\:bg-red-50:hover { background-color: rgba(255, 120, 150, 0.14); }
+
+/* ---- Alerts / callouts --------------------------------------------------------------------- */
+.holo .rounded-md.border.px-4.py-3 {
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(1, 8, 15, 0.4);
+}
+.holo .rounded-md.border.border-amber-200 {
+  background: rgba(52, 36, 20, 0.55);
+  border: 1px solid rgba(255, 190, 110, 0.45);
+  color: #ffe0b3;
+}
+.holo .rounded-md.border.border-amber-200::before { content: "\26A0\FE0E  "; color: #ffd9a3; }
+
+/* ---- Forms ------------------------------------------------------------------------------------ */
+.holo input, .holo textarea, .holo select {
+  background-color: rgba(3, 22, 34, 0.55);
+  color: #eefaff;
+  border-color: rgba(150, 230, 255, 0.3);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.holo input::placeholder, .holo textarea::placeholder { color: rgba(173, 206, 219, 0.5); }
+.holo input:focus, .holo textarea:focus, .holo select:focus {
+  outline: none;
+  border-color: var(--h-cyan);
+  box-shadow: 0 0 0 3px rgba(85, 232, 255, 0.18), 0 0 14px rgba(85, 232, 255, 0.22);
+}
+.holo select option { background: #041a2b; color: #eefaff; }
+.holo input[type="checkbox"], .holo input[type="radio"] { accent-color: var(--h-cyan); }
+
+/* ---- Email popup + lead details dialog: dense glass so text always reads clearly ---------------- */
+.holo [data-email-popover] {
+  background: linear-gradient(160deg, rgba(10, 46, 68, 0.94), rgba(3, 16, 26, 0.96));
+  border: 1px solid rgba(150, 230, 255, 0.38);
+  border-radius: 18px;
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 28px rgba(85, 232, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.holo [role="dialog"][aria-labelledby="lead-details-title"] {
+  background: linear-gradient(160deg, rgba(11, 50, 74, 0.95), rgba(3, 16, 26, 0.97));
+  border: 1px solid rgba(150, 230, 255, 0.32);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.6), 0 0 36px rgba(85, 232, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.holo [role="dialog"] li.rounded-md.border { background: rgba(85, 232, 255, 0.035); }
+
+/* square selectors in the popup: the address rows and their tick boxes */
+.holo [data-email-popover] button,
+.holo [data-email-popover] button > span:first-child { border-radius: 0; }
+.holo .shadow-lg { box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 28px rgba(85, 232, 255, 0.16); }
+
+/* ---- Misc ---------------------------------------------------------------------------------------- */
+.holo hr, .holo .border-t, .holo .border-b { border-color: rgba(255, 255, 255, 0.08); }
+.holo code { color: #8fe6ff; }
+.holo footer { color: #5f7d89; }
+.holo ::-webkit-scrollbar { width: 10px; height: 10px; }
+.holo ::-webkit-scrollbar-thumb { background: rgba(150, 230, 255, 0.26); border-radius: 8px; }
+.holo ::-webkit-scrollbar-track { background: rgba(3, 16, 26, 0.3); }
