@@ -646,7 +646,7 @@ the Client ID and Client secret at the end of Step 7.
 1. Open `$APP/connect` → **Connect Gmail** → choose the business account → approve the three permissions.
    The page then shows **Connected as `<address>`**.
 2. Create a blank Google Sheet in the business account (`sheets.new`), copy its URL, paste it under
-   **Google Sheet** → **Save & Validate**. The header row (columns A–O) is written automatically.
+   **Google Sheet** → **Save & Validate**. The header row (columns A–Q, section 8) is written automatically.
 3. *Verify:* `$APP/api/health` → `fully_connected: true`.
 
 **Phase 7 — Templates and a test lead (person; agent can navigate).**
