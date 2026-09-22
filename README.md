@@ -173,7 +173,7 @@ risk than anything in the email body.
 
 ## 8. Sheet contract
 
-Columns A–P, header row required, exact order:
+Columns A–Q, header row required, exact order:
 
 | Col | Field | Filled by |
 |---|---|---|
@@ -194,8 +194,9 @@ Columns A–P, header row required, exact order:
 | N | followup_2_draft_id | Dashboard button "Follow-up 2" — dedup key |
 | O | followup_3_draft_id | Dashboard button "Final follow-up" — dedup key |
 | P | email_verified | Dashboard verification buttons (section 13) — JSON of per-address results from ZeroBounce / Hunter / Clay |
+| Q | ab_variant | Pipeline (VERIFIED) — `""` / `A` / `B`, an optional A/B test's assignment (section 14) |
 
-If you connected your Sheet before these columns existed, add the header `mx_status` to K1 yourself — the pipeline writes to K regardless, but the column won't have a label until you add it. Headers L1:O1 are filled in automatically the first time a follow-up button is used, if all four are empty.
+If you connected your Sheet before these columns existed, add the header `mx_status` to K1 yourself — the pipeline writes to K regardless, but the column won't have a label until you add it. Headers L1:Q1 are filled in automatically the next pipeline run, if empty.
 
 ### Follow-ups
 
@@ -862,3 +863,36 @@ service's entry in `META` (label, environment variable name). Add the service's 
 `PROVIDER_IDS` in `src/lib/verification-store.ts`, add its short chip label in
 `src/app/dashboard/verification.tsx`, and extend `isApiProvider`. Every failure must be thrown as a `VerifierError`
 with a message that never contains the key.
+
+## 14. A/B testing templates
+
+Each of the four templates (First outreach, Follow-up 1/2/3) can optionally have a second version, **Variant B**,
+alongside the original, now called **Variant A**. This is entirely opt-in: a template with no Variant B saved works
+exactly as it always has — nothing about this changes unless you save one.
+
+### 14.1 How it works
+
+1. On the **Templates** page, each template now shows two blocks: **Variant A** (required, same as before) and
+   **Variant B** (optional). Save a Variant B for a template to start testing it.
+2. The **first time** a lead reaches its first email (the pipeline's `VERIFIED -> OUTREACH` step), and only if
+   **First outreach** has a saved Variant B, the lead is randomly assigned **A** or **B** (roughly 50/50). That
+   choice is written to the Sheet's **`ab_variant`** column (Q) and **never changes again** for that lead — every
+   later step (drafting, the QA re-check, and any follow-up) reads it back and reuses it, rather than deciding
+   again. A lead's whole sequence — first email and every follow-up — stays in one voice.
+3. If a **follow-up step's own Variant B** was never saved, that step just uses its Variant A for every lead,
+   regardless of which variant they were assigned for the first email — so you can A/B test only the first email,
+   or the whole sequence, as you choose.
+4. A lead created before this feature existed (blank `ab_variant`) is treated as Variant A — no re-verification,
+   no behaviour change.
+5. To see how a lead was split, look at column Q in the Sheet, the small **A**/**B** badge next to its stage on the
+   dashboard, or the **A/B variant** field in its lead-details popup (click the company name).
+
+### 14.2 What this does *not* do
+
+- There's no built-in reply/reply-rate comparison — that's on you, by filtering the Sheet on column Q against
+  whatever you're measuring (e.g. thread replies in Gmail).
+- There's no way to turn Variant B back off once saved, the same way there's no way to unsave Variant A — the
+  template system only ever adds new versions, never deletes. If you want to stop testing, keep both variants
+  identical going forward, or just read column Q and ignore the split.
+- The split is per lead, not re-rolled per email — that's deliberate, so a recipient's whole thread reads
+  consistently (see 14.1 step 2).

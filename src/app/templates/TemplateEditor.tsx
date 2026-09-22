@@ -11,20 +11,26 @@ function render(text: string) {
 
 export default function TemplateEditor({
   name,
+  variant = "a",
   title,
   description,
   showSubject,
   isSaved,
   initialSubject,
   initialBody,
+  idleHint,
 }: {
   name: string;
+  variant?: "a" | "b";
   title: string;
   description?: string;
   showSubject: boolean;
   isSaved: boolean;
   initialSubject: string;
   initialBody: string;
+  // Shown instead of the usual "Not saved yet" meaning when that's expected and fine
+  // (an unsaved Variant B just means this slot isn't being A/B tested).
+  idleHint?: string;
 }) {
   const [subject, setSubject] = useState(initialSubject);
   const [bodyHtml, setBodyHtml] = useState(initialBody);
@@ -42,7 +48,7 @@ export default function TemplateEditor({
       const res = await fetch("/api/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, subject: showSubject ? subject : undefined, body_html: bodyHtml }),
+        body: JSON.stringify({ name, variant, subject: showSubject ? subject : undefined, body_html: bodyHtml }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -70,6 +76,7 @@ export default function TemplateEditor({
         </span>
       </div>
       {description && <p className="text-sm text-slate-600">{description}</p>}
+      {!saved && idleHint && <p className="text-xs text-slate-500">{idleHint}</p>}
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">

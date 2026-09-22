@@ -1,7 +1,7 @@
 import { OAuth2Client } from "google-auth-library";
 import { LeadRow } from "./sheets";
 import { discoverEmails, isEmailUsableForDomain, isPlausibleEmail, summarizeMxStatus } from "./email-discovery";
-import { getActiveTemplate, renderTemplate } from "./templates";
+import { assignVariant, getActiveTemplate, renderTemplate, resolveVariant } from "./templates";
 import { checkSpamSignals } from "./spam-check";
 import { createDraft, updateDraft, getDraft } from "./gmail";
 import { errorMessage } from "./error";
@@ -125,7 +125,11 @@ async function advanceEnriched(lead: LeadRow): Promise<StageResult> {
 }
 
 async function advanceVerified(lead: LeadRow): Promise<StageResult> {
-  const template = await getActiveTemplate();
+  // Decided exactly once per lead, here (its first render), then reused by every later
+  // stage and every follow-up via resolveVariant — see the note in templates.ts.
+  const alreadyAssigned = lead.abVariant.trim() !== "";
+  const variant = alreadyAssigned ? resolveVariant(lead.abVariant) : await assignVariant("first_outreach");
+  const template = await getActiveTemplate("first_outreach", variant);
   if (!template) {
     return { rowNumber: lead.rowNumber, updates: { lastError: withCarriedWarning(lead, "no active template configured") } };
   }
@@ -135,17 +139,16 @@ async function advanceVerified(lead: LeadRow): Promise<StageResult> {
   const { subject, bodyHtml } = renderTemplate(template, companyName, greetingName);
   const warnings = checkSpamSignals(subject, bodyHtml);
 
-  return {
-    rowNumber: lead.rowNumber,
-    updates: {
-      stage: "OUTREACH",
-      lastError: withCarriedWarning(lead, warnings.length ? `deliverability warning: ${warnings.join("; ")}` : ""),
-    },
+  const updates: StageResult["updates"] = {
+    stage: "OUTREACH",
+    lastError: withCarriedWarning(lead, warnings.length ? `deliverability warning: ${warnings.join("; ")}` : ""),
   };
+  if (!alreadyAssigned) updates.abVariant = variant.toUpperCase();
+  return { rowNumber: lead.rowNumber, updates };
 }
 
 async function advanceOutreach(auth: OAuth2Client, lead: LeadRow): Promise<StageResult> {
-  const template = await getActiveTemplate();
+  const template = await getActiveTemplate("first_outreach", resolveVariant(lead.abVariant));
   if (!template) {
     return { rowNumber: lead.rowNumber, updates: { lastError: withCarriedWarning(lead, "no active template configured") } };
   }
@@ -190,7 +193,7 @@ async function advanceQA(auth: OAuth2Client, lead: LeadRow): Promise<StageResult
     };
   }
 
-  const template = await getActiveTemplate();
+  const template = await getActiveTemplate("first_outreach", resolveVariant(lead.abVariant));
   if (!template) {
     return { rowNumber: lead.rowNumber, updates: { lastError: withCarriedWarning(lead, "no active template configured") } };
   }

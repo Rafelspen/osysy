@@ -23,6 +23,7 @@ export type DetailLead = VLead & {
   followup1DraftId: string;
   followup2DraftId: string;
   followup3DraftId: string;
+  abVariant?: string;
 };
 
 export const FOLLOW_UPS = [
@@ -417,6 +418,15 @@ export function LeadDetailsDialog(props: {
               <dt className="text-xs text-slate-500">Greeting name</dt>
               <dd className="break-words text-slate-800">{lead.greetingName?.trim() || "—"}</dd>
             </div>
+            {(lead.abVariant === "A" || lead.abVariant === "B") && (
+              <div>
+                <dt className="text-xs text-slate-500">A/B variant</dt>
+                <dd className="break-words text-slate-800">
+                  Variant {lead.abVariant}
+                  <span className="ml-1 text-xs text-slate-400">(assigned at the first email, used for the whole sequence)</span>
+                </dd>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <dt className="text-xs text-slate-500">Source</dt>
               <dd className="break-all text-slate-800">

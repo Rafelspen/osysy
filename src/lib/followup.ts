@@ -1,7 +1,7 @@
 import { OAuth2Client } from "google-auth-library";
 import { LeadRow, updateLeadRow } from "./sheets";
 import { createDraft, getDraft, getThreadMessages } from "./gmail";
-import { getActiveTemplate, renderTemplate, type TemplateName } from "./templates";
+import { getActiveTemplate, renderTemplate, resolveVariant, type TemplateName } from "./templates";
 import { leadRecipients } from "./pipeline";
 import { errorMessage } from "./error";
 
@@ -36,7 +36,10 @@ export async function draftFollowUp(
   }
   if (!lead.officialEmail.trim()) return fail(409, "This lead has no TO address.");
 
-  const template = await getActiveTemplate(`follow_up_${step}` as TemplateName);
+  // Same A/B variant this lead's first email used (assigned once, in advanceVerified — see
+  // templates.ts), so the whole sequence stays in one voice. Falls back to Variant A if this
+  // follow-up step never had its own Variant B saved.
+  const template = await getActiveTemplate(`follow_up_${step}` as TemplateName, resolveVariant(lead.abVariant));
   if (!template) return fail(400, `Save the "${label}" template on the Templates page first.`);
 
   // Find the thread: stored at draft time, else recovered from the first draft if it still exists.

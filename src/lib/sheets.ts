@@ -22,6 +22,7 @@ export type LeadRow = {
   followup2DraftId: string;
   followup3DraftId: string;
   emailVerified: string; // JSON of per-address results from ZeroBounce/Hunter/Clay — see verification-store.ts
+  abVariant: string; // "" (not yet drafted) | "A" | "B" — see templates.ts; set once, at the first draft, then reused
 };
 
 const HEADER = [
@@ -41,13 +42,14 @@ const HEADER = [
   "followup_2_draft_id",
   "followup_3_draft_id",
   "email_verified",
+  "ab_variant",
 ];
 
 // Ranges omit a sheet name on purpose: the Sheets Values API defaults to the
 // first visible tab when none is given, so this works regardless of what the
 // user names their tab.
-const DATA_RANGE = "A2:P";
-const FULL_RANGE = "A1:P";
+const DATA_RANGE = "A2:Q";
+const FULL_RANGE = "A1:Q";
 
 export function extractSheetId(url: string): string {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -85,13 +87,13 @@ export async function validateSheetAccess(auth: OAuth2Client, sheetId: string): 
   await api.spreadsheets.values.get({ spreadsheetId: sheetId, range: "A1" });
 }
 
-// Sheets connected before the newer columns existed have no labels for L:P. Fill in
+// Sheets connected before the newer columns existed have no labels for L:Q. Fill in
 // only the labels that are empty — nothing that already has text is touched.
 export async function ensureHeaders(auth: OAuth2Client, sheetId: string): Promise<void> {
   const api = client(auth);
-  const res = await api.spreadsheets.values.get({ spreadsheetId: sheetId, range: "L1:P1" });
+  const res = await api.spreadsheets.values.get({ spreadsheetId: sheetId, range: "L1:Q1" });
   const existing = res.data.values?.[0] ?? [];
-  const columns = ["L", "M", "N", "O", "P"];
+  const columns = ["L", "M", "N", "O", "P", "Q"];
   const data = columns
     .map((col, i) => ({ range: `${col}1`, values: [[HEADER[11 + i]]], missing: !String(existing[i] ?? "").trim() }))
     .filter((d) => d.missing)
@@ -137,6 +139,7 @@ export async function readLeadRows(auth: OAuth2Client, sheetId: string): Promise
       followup2DraftId: row[13] ?? "",
       followup3DraftId: row[14] ?? "",
       emailVerified: row[15] ?? "",
+      abVariant: row[16] ?? "",
     }))
     .filter((r) => r.source || r.websiteUrl || r.companyName); // skip fully blank trailing rows
 }
@@ -153,7 +156,7 @@ export async function appendLeadRow(
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
-      values: [[data.source, "", data.websiteUrl, "", "", "", "", "SOURCED", "", "", "", "", "", "", "", ""]],
+      values: [[data.source, "", data.websiteUrl, "", "", "", "", "SOURCED", "", "", "", "", "", "", "", "", ""]],
     },
   });
 }
@@ -183,6 +186,7 @@ export async function updateLeadRow(
     followup2DraftId: "N",
     followup3DraftId: "O",
     emailVerified: "P",
+    abVariant: "Q",
   };
 
   const data: sheets_v4.Schema$ValueRange[] = Object.entries(updates)

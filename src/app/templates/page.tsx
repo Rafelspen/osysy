@@ -1,4 +1,4 @@
-import { getActiveTemplate, TEMPLATE_NAMES, type Template, type TemplateName } from "@/lib/templates";
+import { getActiveTemplateExact, TEMPLATE_NAMES, type Template, type TemplateName } from "@/lib/templates";
 import { errorMessage } from "@/lib/error";
 import TemplateEditor from "./TemplateEditor";
 
@@ -55,11 +55,16 @@ const BLOCKS: Record<
 };
 
 export default async function TemplatesPage() {
-  const active: Partial<Record<TemplateName, Template | null>> = {};
+  const activeA: Partial<Record<TemplateName, Template | null>> = {};
+  const activeB: Partial<Record<TemplateName, Template | null>> = {};
   let dbError: string | null = null;
   try {
     for (const name of TEMPLATE_NAMES) {
-      active[name] = await getActiveTemplate(name);
+      // The exact saved state of each — no fallback — so an unsaved Variant B always
+      // shows as unsaved, never pre-filled with Variant A's content.
+      const [a, b] = await Promise.all([getActiveTemplateExact(name, "a"), getActiveTemplateExact(name, "b")]);
+      activeA[name] = a;
+      activeB[name] = b;
     }
   } catch (err) {
     dbError = errorMessage(err);
@@ -73,6 +78,12 @@ export default async function TemplatesPage() {
           Each template is saved on its own. Saving creates a new version and deactivates only that template&rsquo;s previous
           version. A follow-up template must be saved before its button on the dashboard will work.
         </p>
+        <p className="mt-2 text-sm text-slate-600">
+          <strong>Optional A/B testing:</strong> save a <strong>Variant B</strong> below any template to start splitting new
+          leads between it and Variant A. Each lead is assigned once, at its first email, and keeps that same variant
+          through its whole sequence (including follow-ups) — see the Sheet&rsquo;s <code>ab_variant</code> column. Leave
+          Variant B unsaved and that template works exactly as it always has.
+        </p>
       </div>
       {dbError && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -81,18 +92,34 @@ export default async function TemplatesPage() {
       )}
       {TEMPLATE_NAMES.map((name) => {
         const block = BLOCKS[name];
-        const saved = active[name];
+        const savedA = activeA[name];
+        const savedB = activeB[name];
         return (
-          <TemplateEditor
-            key={name}
-            name={name}
-            title={block.title}
-            description={block.description}
-            showSubject={block.showSubject}
-            isSaved={!!saved}
-            initialSubject={saved?.subject ?? DEFAULT_SUBJECT}
-            initialBody={saved?.body_html ?? block.defaultBody}
-          />
+          <section key={name} className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">{block.title}</h2>
+              <p className="text-sm text-slate-600">{block.description}</p>
+            </div>
+            <TemplateEditor
+              name={name}
+              variant="a"
+              title="Variant A"
+              isSaved={!!savedA}
+              initialSubject={savedA?.subject ?? DEFAULT_SUBJECT}
+              initialBody={savedA?.body_html ?? block.defaultBody}
+              showSubject={block.showSubject}
+            />
+            <TemplateEditor
+              name={name}
+              variant="b"
+              title="Variant B"
+              isSaved={!!savedB}
+              initialSubject={savedB?.subject ?? DEFAULT_SUBJECT}
+              initialBody={savedB?.body_html ?? block.defaultBody}
+              showSubject={block.showSubject}
+              idleHint="Not set up — every lead uses Variant A for this one. Save a Variant B to start A/B testing it."
+            />
+          </section>
         );
       })}
     </div>

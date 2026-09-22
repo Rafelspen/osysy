@@ -34,6 +34,7 @@ type Lead = {
   followup1DraftId: string;
   followup2DraftId: string;
   followup3DraftId: string;
+  abVariant?: string;
 };
 
 // "Run until done" safety limits. A lead needs at most 5 runs to reach DRAFTED and
@@ -617,6 +618,14 @@ export default function DashboardPage() {
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_COLORS[lead.stage] ?? "bg-slate-100 text-slate-600"}`}>
                       {lead.stage || "—"}
                     </span>
+                    {(lead.abVariant === "A" || lead.abVariant === "B") && (
+                      <span
+                        title={`This lead's email sequence is using Variant ${lead.abVariant} (A/B test, set on the Templates page)`}
+                        className="ml-1.5 inline-block rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500"
+                      >
+                        {lead.abVariant}
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2">
                     {mx ? (
