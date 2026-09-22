@@ -171,14 +171,35 @@ export function EmailStatusCard({ leads }: { leads: SummaryLead[] }) {
 
 // A single "how good is this Sheet to send to right now" reading: what share
 // of the addresses actually checked so far came back deliverable.
-export function ReachSignalCard({ leads }: { leads: SummaryLead[] }) {
+export function ReachSignalCard({
+  leads,
+  onOpenEnrich,
+  enrichDisabled,
+}: {
+  leads: SummaryLead[];
+  onOpenEnrich?: () => void;
+  enrichDisabled?: boolean;
+}) {
   const s = summarizeEmailStatus(leads);
   const r = summarizeReach(s);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">Reach</h2>
-      <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-900">Reach</h2>
+        {onOpenEnrich && (
+          <button
+            type="button"
+            onClick={onOpenEnrich}
+            disabled={enrichDisabled}
+            title={enrichDisabled ? "Wait for the current pipeline run to finish first" : "Open the bulk enrichment tool"}
+            className="text-xs font-medium text-slate-600 underline hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+          >
+            Open &amp; enrich →
+          </button>
+        )}
+      </div>
+      <div className="mt-3 flex items-center gap-3">
         <SignalBars tier={r.tier} bars={r.bars} />
         <span className="text-sm font-semibold text-slate-900">{r.label}</span>
       </div>

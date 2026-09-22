@@ -731,6 +731,25 @@ has the same controls as the rest of the dashboard — select addresses, run **Z
 by hand, reset results, draft follow-ups — and they all act on the same data, so the table, the left panel and the popup
 always agree. It closes with **Esc**, the **×**, or a click outside.
 
+**Bulk "Open & enrich".** Click **Open & enrich →** on the **Reach** card (below the stage counters) to check many
+addresses across many leads in one go, with a fallback chain between services:
+
+1. It opens on **Needs enrichment**: one block per lead with at least one unchecked address, showing that lead's
+   full address list — already-checked addresses appear as a green **Enriched** pill (not selectable here; use the
+   row's own badge/popup or the lead-details popup to touch those), and unchecked ones as a checkbox you can tick.
+   Tick addresses across as many leads as you like.
+2. Switch to **Enriched** to review, read-only, what's already been checked and its result.
+3. Tick the services to use — **ZeroBounce**, **Hunter**, **Clay** (only ones that are set up can be ticked; Clay
+   only if its Public API is configured, not in manual mode) — then click **Enrich (N selected)**.
+4. They run as a **fallback chain**, always in the order ZeroBounce → Hunter → Clay regardless of tick order: the
+   first ticked service checks every selected address; whatever it doesn't resolve — a failed check, or an
+   **Unknown** result — is retried with the next ticked service, and so on. An address stops being retried as soon
+   as one service gives a clear answer (Deliverable, Undeliverable or Risky).
+5. Progress and the final count show at the bottom; **Stop** ends it after the address in progress. It calls the
+   same per-lead check endpoint the row buttons use (batched to its 3-address limit), so it's exactly as safe and
+   spends credits the same way — nothing new on the server. While it runs, the pipeline buttons and the per-row
+   check buttons are disabled (both can write to the Sheet, so only one runs at a time).
+
 ### 13.2 The three services
 
 | Service | How it runs | Free allowance | Setup |
@@ -830,6 +849,9 @@ of truth.
   to 3 addresses, and skips addresses a service already checked, so the most an outsider could spend is one credit
   per distinct address already in your Sheet. Add a login before the app is public.
 - API keys stay on the server and are never put in messages, logs or the health page.
+- **Open & enrich** can spend credits across many leads in one click — it's still capped the same way underneath (3
+  addresses per request, only a lead's own addresses, cached results skipped), but check your selection before
+  clicking **Enrich** if you're watching a tight monthly limit.
 
 ### 13.8 Adding another API service (for developers)
 

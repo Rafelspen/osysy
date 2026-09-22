@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ProviderStatus } from "@/lib/email-verifier";
+import type { ApiProviderId, ProviderStatus } from "@/lib/email-verifier";
 import { leadEmails, parseStore, summarizeLead, type ProviderId, type Verdict } from "@/lib/verification-store";
 import { EmailPopover, SelectedEmailsPanel, useSelection, VerifyButtons } from "./verification";
 import { EmailStatusCard, ReachSignalCard } from "./summary";
+import { EnrichmentModal, MAX_ENRICH_CHUNK, type EnrichJob } from "./enrichment";
 import {
   FOLLOW_UPS,
   LeadDetailsDialog,
@@ -49,6 +50,7 @@ function friendlyError(err: any, fallback: string): string {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const PROVIDER_LABEL: Record<ApiProviderId, string> = { zerobounce: "ZeroBounce", hunter: "Hunter", clay: "Clay" };
 
 export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -69,6 +71,13 @@ export default function DashboardPage() {
   const [looping, setLooping] = useState(false);
   const [loopStatus, setLoopStatus] = useState<string | null>(null);
   const stopRef = useRef(false);
+  const [enrichOpen, setEnrichOpen] = useState(false);
+  const [enrichRunning, setEnrichRunning] = useState(false);
+  const [enrichStatus, setEnrichStatus] = useState<string | null>(null);
+  const enrichStopRef = useRef(false);
+  // Any large batch action (the pipeline loop or bulk enrichment) blocks the other —
+  // both can write to the same Sheet, so they never run at the same time.
+  const batchBusy = looping || enrichRunning;
 
   // Selection is only reconciled against the Sheet once a real, successful load happened.
   const selection = useSelection(leads, !loading && !loadError && connected && !gmailDisconnected);
@@ -365,6 +374,67 @@ export default function DashboardPage() {
     }
   }
 
+  // Runs each lead's selected (never-checked) addresses through the checked services
+  // in order, as a fallback chain: whatever a service doesn't resolve (a failure, or
+  // an Unknown verdict) is retried with the next checked service. Calls the same
+  // /api/leads/verify endpoint the per-row buttons use — one request per provider per
+  // lead, chunked to its 3-address limit — so no new server-side logic is involved.
+  async function runBulkEnrichment(jobs: EnrichJob[], providerOrder: ApiProviderId[]) {
+    if (jobs.length === 0 || providerOrder.length === 0) return;
+    enrichStopRef.current = false;
+    setEnrichRunning(true);
+    setActionMessage(null);
+    let leadsDone = 0;
+    let addressesEnriched = 0;
+    const totalJobs = jobs.length;
+    try {
+      for (const job of jobs) {
+        if (enrichStopRef.current) break;
+        const name = job.lead.companyName || job.lead.websiteUrl;
+        let remaining = [...job.emails];
+        for (const provider of providerOrder) {
+          if (remaining.length === 0 || enrichStopRef.current) break;
+          const stillUnresolved: string[] = [];
+          for (let i = 0; i < remaining.length; i += MAX_ENRICH_CHUNK) {
+            if (enrichStopRef.current) break;
+            const chunk = remaining.slice(i, i + MAX_ENRICH_CHUNK);
+            setEnrichStatus(`${name} — trying ${PROVIDER_LABEL[provider]} for ${chunk.length} address${chunk.length === 1 ? "" : "es"}...`);
+            try {
+              const { data } = await postJson("/api/leads/verify", {
+                rowNumber: job.lead.rowNumber,
+                websiteUrl: job.lead.websiteUrl,
+                provider,
+                emails: chunk,
+              });
+              const outcomes: Array<{ email: string; status: string; verdict?: string }> = data.outcomes ?? [];
+              const resolved = new Set(
+                outcomes.filter((o) => (o.status === "checked" || o.status === "cached") && o.verdict && o.verdict !== "unknown").map((o) => o.email.toLowerCase())
+              );
+              addressesEnriched += resolved.size;
+              for (const email of chunk) {
+                if (!resolved.has(email.toLowerCase())) stillUnresolved.push(email);
+              }
+            } catch {
+              stillUnresolved.push(...chunk); // couldn't reach the server — let the next provider try
+            }
+          }
+          remaining = stillUnresolved;
+        }
+        leadsDone += 1;
+        await refreshQuietly(); // the modal and table update after each lead, not only at the end
+      }
+    } finally {
+      setEnrichRunning(false);
+      setEnrichStatus(null);
+      setActionMessage({
+        ok: true,
+        text: enrichStopRef.current
+          ? `Stopped after ${leadsDone} of ${totalJobs} lead(s) — ${addressesEnriched} address${addressesEnriched === 1 ? "" : "es"} enriched.`
+          : `Finished ${leadsDone} lead(s) — ${addressesEnriched} address${addressesEnriched === 1 ? "" : "es"} enriched.`,
+      });
+    }
+  }
+
   async function runNow() {
     setRunning(true);
     setRunMessage(null);
@@ -398,7 +468,7 @@ export default function DashboardPage() {
           <SelectedEmailsPanel
             leads={leads}
             selected={Object.values(selection.selected)}
-            busy={verifyBusy !== null || looping}
+            busy={verifyBusy !== null || batchBusy}
             onRemove={selection.remove}
             onClear={selection.clear}
             onSet={(l, email, provider, verdict) => recordManual(l as Lead, email, provider, verdict)}
@@ -413,7 +483,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={runNow}
-            disabled={running || looping || verifyBusy !== null}
+            disabled={running || batchBusy || verifyBusy !== null}
             className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
             title="One pipeline step for every waiting lead"
           >
@@ -421,7 +491,7 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={runUntilDone}
-            disabled={running || looping || verifyBusy !== null}
+            disabled={running || batchBusy || verifyBusy !== null}
             className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
             title="Repeat the pipeline until every lead is drafted"
           >
@@ -489,7 +559,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <EmailStatusCard leads={leads} />
-        <ReachSignalCard leads={leads} />
+        <ReachSignalCard leads={leads} onOpenEnrich={() => setEnrichOpen(true)} enrichDisabled={running || looping} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -579,7 +649,7 @@ export default function DashboardPage() {
                           selectedCount={selectedCount}
                           providers={providers}
                           busyKey={verifyBusy}
-                          disabled={looping}
+                          disabled={batchBusy}
                           onVerify={(l, provider) => (provider === "clay" && providers.find((p) => p.id === "clay")?.kind !== "api" ? clayCopyAndOpen(l as Lead) : verifySelected(l as Lead, provider))}
                         />
                       </>
@@ -609,7 +679,7 @@ export default function DashboardPage() {
                             <button
                               key={step}
                               onClick={() => draftFollowUp(lead, step, label)}
-                              disabled={busyKey !== null || looping || (!done && !previousDone)}
+                              disabled={busyKey !== null || batchBusy || (!done && !previousDone)}
                               title={
                                 done ? `${label} was drafted — click to re-check its status` : !previousDone ? "Draft the previous follow-up first" : `Draft ${label} in the same Gmail thread`
                               }
@@ -654,7 +724,7 @@ export default function DashboardPage() {
           }}
           verifyBusy={verifyBusy}
           followUpBusy={busyKey}
-          looping={looping}
+          looping={batchBusy}
           message={actionMessage}
           onVerify={(provider) =>
             provider === "clay" && providers.find((p) => p.id === "clay")?.kind !== "api"
@@ -676,6 +746,23 @@ export default function DashboardPage() {
           onToggle={(email) => selection.toggle(popoverLead, email)}
           onEnter={cancelClose}
           onLeave={scheduleClose}
+        />
+      )}
+
+      {enrichOpen && (
+        <EnrichmentModal
+          leads={leads}
+          providers={providers}
+          isSelected={selection.isSelected}
+          toggle={selection.toggle}
+          running={enrichRunning}
+          status={enrichStatus}
+          onEnrich={(jobs, order) => runBulkEnrichment(jobs, order)}
+          onStop={() => {
+            enrichStopRef.current = true;
+            setEnrichStatus("Stopping after this address...");
+          }}
+          onClose={() => setEnrichOpen(false)}
         />
       )}
     </div>
