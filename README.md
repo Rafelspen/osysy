@@ -6,6 +6,24 @@ in Gmail for manual review and send. Nothing is ever auto-sent.
 
 > **Setting this up on new accounts, or having an AI agent do it?** Go straight to [section 12](#12-fresh-install-on-new-accounts-person--browser-agent). Google-specific steps are in section 10, agent rules in section 11.
 
+**Prerequisites:** Node.js 18.17 or later ([nodejs.org](https://nodejs.org)) and `npm` (comes with it) to run this
+locally; a free GitHub account and a free Vercel account to deploy it; a Google account for the outreach mailbox.
+No prior experience with any of these is assumed — section 12 walks through every account and setting.
+
+**Got this project as a downloaded folder or a ZIP, not a `git clone`?** Turn it into your own GitHub repository
+first — Vercel deploys from GitHub, not from a folder on your computer:
+```bash
+cd path/to/this/folder
+git init
+git add .
+git commit -m "Initial commit"
+```
+Then create a new, empty repository on GitHub (github.com → **New repository**, no README/license/gitignore —
+this folder already has them) and push to it, using the commands GitHub shows you on that new repo's page (they
+look like `git remote add origin <url>` then `git push -u origin main`). Once it's on GitHub, continue at
+**Phase 1** of [section 12](#12-fresh-install-on-new-accounts-person--browser-agent), or **§5 Deploy** below for a
+lighter-weight setup on accounts you already use day to day.
+
 ## Stack
 
 Next.js 14 (App Router, TypeScript) on Vercel, Postgres for app state (OAuth tokens,
@@ -614,9 +632,11 @@ Check `$APP/api/health` at the end of each phase (see 12.6). It returns only tru
 Internal setup), a new GitHub account and a new Vercel account (signing up to Vercel with GitHub is easiest).
 
 **Phase 1 — Put the code in the new GitHub account (person; agent can navigate).**
-1. On the new GitHub account open `https://github.com/new/import`, paste the URL of the existing repository,
-   name the new repository (for example `obsys`) and set it **Public** (see 12.2). GitHub copies it.
-   Alternative: create an empty repository and push a local copy to it.
+1. If you already have this project on GitHub somewhere (for example moving it to a new business account): on the
+   new account open `https://github.com/new/import`, paste the URL of the existing repository, name the new
+   repository (for example `obsys`) and set it **Public** (see 12.2). GitHub copies it.
+   Otherwise — starting from a downloaded folder — see "Got this project as a downloaded folder" at the top of
+   this README, then create a new, empty, **Public** repository on GitHub and push to it.
 2. Confirm the new repository shows the files and that **Actions** is available (if GitHub shows
    "I understand my workflows, go ahead and enable them", the person clicks it).
 
