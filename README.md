@@ -709,6 +709,13 @@ to check, and with which service, from the dashboard — so the free monthly cre
 The buttons are greyed out with an explanation when: no address is selected, the service isn't set up, or another
 check is running.
 
+**Lead details.** Click a **company name** in the dashboard table to open the full picture of that lead: its stage
+(with a progress bar), errors and warnings, MX/Domain, each address with its role in a draft made now (**TO**, **CC**
+or **Left out**), whether its domain matches the website, every service's result, and the draft / follow-up state. It
+has the same controls as the rest of the dashboard — select addresses, run **ZeroBounce / Hunter / Clay**, set a result
+by hand, reset results, draft follow-ups — and they all act on the same data, so the table, the left panel and the popup
+always agree. It closes with **Esc**, the **×**, or a click outside.
+
 ### 13.2 The three services
 
 | Service | How it runs | Free allowance | Setup |

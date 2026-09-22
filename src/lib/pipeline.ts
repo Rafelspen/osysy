@@ -5,39 +5,16 @@ import { getActiveTemplate, renderTemplate } from "./templates";
 import { checkSpamSignals } from "./spam-check";
 import { createDraft, updateDraft, getDraft } from "./gmail";
 import { errorMessage } from "./error";
-import { normalizeEmail, overallVerdict, parseStore, undeliverableSet } from "./verification-store";
+import { leadRecipients } from "./lead-recipients";
 
 export type StageResult = {
   rowNumber: number;
   updates: Partial<Omit<LeadRow, "rowNumber">>;
 };
 
-// TO is column D; CC is columns E and F, deduped, skipping blanks and the TO.
-// Addresses that ZeroBounce/Hunter/Clay results (dashboard) mark undeliverable are
-// never CC'd. If the TO itself is undeliverable, it is replaced by the first
-// address from E/F that isn't (one that checked out as deliverable is preferred
-// over one that was never checked or came back risky/unknown). If there is no
-// usable replacement, TO stays as it is. The Sheet is never changed.
-export function leadRecipients(lead: LeadRow): { to: string; cc: string | undefined } {
-  const store = parseStore(lead.emailVerified);
-  const undeliverable = undeliverableSet(lead.emailVerified);
-  const isBad = (e: string) => undeliverable.has(e.toLowerCase());
-
-  let to = lead.officialEmail.trim();
-  const others = [lead.secondaryEmail.trim(), lead.anotherEmail.trim()].filter(
-    (e, i, all) =>
-      e && e.toLowerCase() !== to.toLowerCase() && all.findIndex((x) => x.toLowerCase() === e.toLowerCase()) === i
-  );
-
-  if (to && isBad(to)) {
-    const usable = others.filter((e) => !isBad(e));
-    const replacement = usable.find((e) => overallVerdict(store[normalizeEmail(e)]) === "deliverable") ?? usable[0];
-    if (replacement) to = replacement;
-  }
-
-  const ccList = others.filter((e) => e.toLowerCase() !== to.toLowerCase() && !isBad(e));
-  return { to, cc: ccList.length ? ccList.join(", ") : undefined };
-}
+// Who a draft goes to lives in lead-recipients.ts (shared with the dashboard); re-exported
+// here so existing imports keep working.
+export { leadRecipients };
 
 const DOMAIN_WARNING_PREFIX = "domain mismatch warning:";
 

@@ -132,7 +132,7 @@ export function useSelection(leads: VLead[], ready: boolean) {
 
 // One chip per service that checked the address, "Service: Result", coloured by the result.
 // "Not checked" when no service has looked at it yet.
-function ResultChips({ checks }: { checks: EmailChecks | undefined }) {
+export function ResultChips({ checks }: { checks: EmailChecks | undefined }) {
   const present = PROVIDER_IDS.filter((id) => checks?.[id]);
   if (present.length === 0) {
     return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">Not checked</span>;
@@ -227,7 +227,7 @@ export function EmailPopover(props: {
 }
 
 // Enter or correct a result by hand, for whichever service supplied it.
-function ManualResult(props: {
+export function ManualResult(props: {
   lead: VLead;
   email: string;
   checks: EmailChecks | undefined;

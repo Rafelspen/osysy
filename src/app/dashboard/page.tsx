@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProviderStatus } from "@/lib/email-verifier";
-import { leadEmails, parseStore, summarizeLead, type ProviderId, type Tone, type Verdict } from "@/lib/verification-store";
+import { leadEmails, parseStore, summarizeLead, type ProviderId, type Verdict } from "@/lib/verification-store";
 import { EmailPopover, SelectedEmailsPanel, useSelection, VerifyButtons } from "./verification";
+import {
+  FOLLOW_UPS,
+  LeadDetailsDialog,
+  mxBadge,
+  splitLastError,
+  STAGE_COLORS,
+  STAGE_ORDER,
+  TONE_CLASS,
+} from "./lead-details";
 
 type Lead = {
   rowNumber: number;
@@ -16,61 +25,14 @@ type Lead = {
   lastError: string;
   mxStatus: string;
   emailVerified: string;
+  source?: string;
+  greetingName?: string;
+  gmailDraftId?: string;
+  threadId?: string;
   followup1DraftId: string;
   followup2DraftId: string;
   followup3DraftId: string;
 };
-
-const FOLLOW_UPS = [
-  { step: 1, label: "Follow-up 1", key: "followup1DraftId" },
-  { step: 2, label: "Follow-up 2", key: "followup2DraftId" },
-  { step: 3, label: "Final follow-up", key: "followup3DraftId" },
-] as const;
-
-const STAGE_COLORS: Record<string, string> = {
-  SOURCED: "bg-slate-100 text-slate-700",
-  ENRICHED: "bg-blue-100 text-blue-800",
-  VERIFIED: "bg-indigo-100 text-indigo-800",
-  OUTREACH: "bg-amber-100 text-amber-800",
-  QA: "bg-purple-100 text-purple-800",
-  DRAFTED: "bg-green-100 text-green-800",
-};
-
-// last_error holds real errors and also standing warnings ("domain mismatch warning:",
-// "deliverability warning:"). A warning can be carried after an error ("error; domain
-// mismatch warning: ..."), so split it off to show it in its own amber callout.
-function splitLastError(text: string): { error: string; warning: string } {
-  const t = text.trim();
-  if (!t) return { error: "", warning: "" };
-  if (/^deliverability warning:/i.test(t)) return { error: "", warning: t };
-  const at = t.search(/domain mismatch warning:/i);
-  if (at === 0) return { error: "", warning: t };
-  if (at > 0) return { error: t.slice(0, at).replace(/[;\s]+$/, ""), warning: t.slice(at) };
-  return { error: t, warning: "" };
-}
-
-// mxStatus is stored as "X/Y valid" — X of the Y found addresses (Official/
-// Secondary/Another) have a domain confirmed able to receive mail.
-function mxBadge(mxStatus: string): { label: string; className: string } | null {
-  const match = mxStatus.match(/^(\d+)\/(\d+) valid$/);
-  if (!match) return null;
-  const valid = Number(match[1]);
-  const total = Number(match[2]);
-  if (total === 0) return null;
-  if (valid === total) return { label: mxStatus, className: "bg-green-100 text-green-800" };
-  if (valid === 0) return { label: mxStatus, className: "bg-red-100 text-red-800" };
-  return { label: mxStatus, className: "bg-amber-100 text-amber-800" };
-}
-
-// Badge colours for the Email Verified column (see summarizeLead in verification-store.ts).
-const TONE_CLASS: Record<Tone, string> = {
-  none: "bg-slate-100 text-slate-500",
-  green: "bg-green-100 text-green-800",
-  amber: "bg-amber-100 text-amber-800",
-  red: "bg-red-100 text-red-800",
-};
-
-const STAGE_ORDER = ["SOURCED", "ENRICHED", "VERIFIED", "OUTREACH", "QA", "DRAFTED"];
 
 // "Run until done" safety limits. A lead needs at most 5 runs to reach DRAFTED and
 // each run handles 10 leads, so 40 rounds covers roughly 80 leads in one click.
@@ -100,6 +62,7 @@ export default function DashboardPage() {
   const [verifyBusy, setVerifyBusy] = useState<string | null>(null);
   const [popover, setPopover] = useState<{ rowNumber: number; left: number; bottom: number } | null>(null);
   const closeTimer = useRef<number | null>(null);
+  const [details, setDetails] = useState<{ rowNumber: number; websiteUrl: string } | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [looping, setLooping] = useState(false);
@@ -343,7 +306,7 @@ export default function DashboardPage() {
       setActionMessage({
         ok: copied,
         text: copied
-          ? `${name} — copied ${emails.length} address${emails.length === 1 ? "" : "es"}. Paste them into a Clay table, run its email verification, then choose the result under "Clay result" in the panel on the left.`
+          ? `${name} — copied ${emails.length} address${emails.length === 1 ? "" : "es"}. Paste them into a Clay table, run its email verification, then record the answer with "Set result from" (Clay) in the panel on the left.`
           : `${name} — couldn't copy automatically. Addresses: ${emails.join(", ")}`,
       });
     const fallback = () => {
@@ -418,6 +381,14 @@ export default function DashboardPage() {
 
   const selectedTotal = Object.keys(selection.selected).length;
   const popoverLead = popover ? leads.find((l) => l.rowNumber === popover.rowNumber) : undefined;
+  // The details popup follows its lead through every refresh; if the lead is gone or the
+  // Sheet row now holds a different site, the popup closes rather than show the wrong lead.
+  const detailsLead = details
+    ? leads.find((l) => l.rowNumber === details.rowNumber && l.websiteUrl.trim() === details.websiteUrl.trim())
+    : undefined;
+  useEffect(() => {
+    if (details && !loading && !detailsLead) setDetails(null);
+  }, [details, detailsLead, loading]);
 
   return (
     <div className="lg:flex lg:items-start lg:gap-6">
@@ -550,7 +521,21 @@ export default function DashboardPage() {
               const selectedCount = selection.forLead(lead).length;
               return (
                 <tr key={lead.rowNumber} className="border-t border-slate-100">
-                  <td className="px-4 py-2 font-medium text-slate-900">{lead.companyName || "—"}</td>
+                  <td className="px-4 py-2 font-medium text-slate-900">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        cancelClose();
+                        setPopover(null);
+                        setDetails({ rowNumber: lead.rowNumber, websiteUrl: lead.websiteUrl });
+                      }}
+                      aria-haspopup="dialog"
+                      title="Open all the details for this lead"
+                      className="text-left font-medium underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                    >
+                      {lead.companyName || "—"}
+                    </button>
+                  </td>
                   <td className="px-4 py-2 text-slate-600">{lead.websiteUrl}</td>
                   <td className="px-4 py-2">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_COLORS[lead.stage] ?? "bg-slate-100 text-slate-600"}`}>
@@ -644,6 +629,38 @@ export default function DashboardPage() {
         </table>
       </div>
       </div>
+
+      {detailsLead && (
+        <LeadDetailsDialog
+          lead={detailsLead}
+          providers={providers}
+          isSelected={(email) => selection.isSelected(detailsLead.rowNumber, email)}
+          onToggle={(email) => selection.toggle(detailsLead, email)}
+          onSelectAll={() => {
+            for (const email of leadEmails(detailsLead)) {
+              if (!selection.isSelected(detailsLead.rowNumber, email)) selection.toggle(detailsLead, email);
+            }
+          }}
+          onClearSelection={() => {
+            for (const email of leadEmails(detailsLead)) {
+              if (selection.isSelected(detailsLead.rowNumber, email)) selection.toggle(detailsLead, email);
+            }
+          }}
+          verifyBusy={verifyBusy}
+          followUpBusy={busyKey}
+          looping={looping}
+          message={actionMessage}
+          onVerify={(provider) =>
+            provider === "clay" && providers.find((p) => p.id === "clay")?.kind !== "api"
+              ? clayCopyAndOpen(detailsLead)
+              : verifySelected(detailsLead, provider)
+          }
+          onSet={(email, provider, verdict) => recordManual(detailsLead, email, provider, verdict)}
+          onReset={(email) => resetEmail(detailsLead, email)}
+          onFollowUp={(step, label) => draftFollowUp(detailsLead, step, label)}
+          onClose={() => setDetails(null)}
+        />
+      )}
 
       {popover && popoverLead && (
         <EmailPopover
