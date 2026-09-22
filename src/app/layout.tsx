@@ -39,7 +39,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={DEFAULT_BODY_CLASS} suppressHydrationWarning>
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <div className="min-h-screen">
-          <header className="border-b border-slate-200 bg-white">
+          {/* relative + z-30: without its own stacking context, this header (and the
+              Theme dropdown inside it) would paint behind any positioned descendant
+              elsewhere on the page — e.g. the dashboard's `sticky` side panel — no
+              matter what z-index the dropdown itself has. */}
+          <header className="relative z-30 border-b border-slate-200 bg-white">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
               <span className="flex items-center gap-2 font-semibold text-slate-900">
                 <span aria-hidden className="brand-orb" />
