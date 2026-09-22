@@ -13,11 +13,11 @@ templates, run logs — never lead data), Google Sheets API + Gmail API for ever
 lead-facing.
 
 **Theme.** The **Theme** button in the header (every page) switches the whole app's look: **Hydro Glass** (default),
-**Deep Current**, or **Classic (light)**, the original plain look. The choice is remembered per browser
-(`localStorage`), so different people (or the same person on different devices) can each keep their own. A theme is
-styling only — it changes no layout, data or behaviour. To add another theme: give it an entry in `src/lib/themes.ts`
-and a small CSS file scoped to its body class (see `src/app/hydro-theme.css` or `src/app/tidal-theme.css` for the
-pattern), imported in `src/app/layout.tsx`.
+**Deep Current**, **Abyssal Glass**, or **Classic (light)**, the original plain look. The choice is remembered per
+browser (`localStorage`), so different people (or the same person on different devices) can each keep their own. A
+theme is styling only — it changes no layout, data or behaviour. To add another theme: give it an entry in
+`src/lib/themes.ts` and a small CSS file scoped to its body class (see `src/app/hydro-theme.css`,
+`src/app/tidal-theme.css` or `src/app/abyss-theme.css` for the pattern), imported in `src/app/layout.tsx`.
 
 ## 1. Environment variables
 

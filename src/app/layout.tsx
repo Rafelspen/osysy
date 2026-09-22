@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import "./hydro-theme.css";
 import "./tidal-theme.css";
+import "./abyss-theme.css";
 import NavLinks from "./NavLinks";
 import ThemeSwitcher from "./ThemeSwitcher";
 import { DEFAULT_THEME, KNOWN_BODY_CLASSES, THEME_STORAGE_KEY, THEMES } from "@/lib/themes";

@@ -1,0 +1,349 @@
+/*
+ * "Abyssal Glass" theme — premium underwater glassmorphism: a very dark
+ * midnight-navy base, soft descending light shafts and caustic ripples,
+ * frosted low-opacity glass panels with a thin luminous cyan-white rim, and
+ * restrained aqua accents (no neon). Deliberately quieter than Hydro Glass and
+ * Deep Current — fewer, softer effects, for a cinematic, expensive feel.
+ * Styling only, scoped to body.abyss: it changes no markup or behaviour.
+ */
+
+body.abyss {
+  --a-ink: #eaf6fb;
+  --a-aqua: #4de1e2;
+  --a-aqua-bright: #72f5f0;
+  --a-deep: #073b57;
+  --a-deep2: #075779;
+  --a-mint: #7fe9c9;
+  --a-glass-rim: rgba(114, 245, 240, 0.28);
+  color: var(--a-ink);
+  font-family: Inter, "SF Pro Display", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #04131f;
+  background-image:
+    radial-gradient(1200px 800px at 50% -12%, rgba(7, 87, 121, 0.28), transparent 62%),
+    radial-gradient(900px 700px at 90% 30%, rgba(7, 59, 87, 0.28), transparent 60%),
+    radial-gradient(1000px 780px at 8% 85%, rgba(7, 59, 87, 0.22), transparent 62%),
+    linear-gradient(180deg, #031525 0%, #061c2d 55%, #03101b 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ---- Volumetric light shafts, descending from above, very soft ------------------- */
+body.abyss::before {
+  content: "";
+  position: fixed;
+  inset: -10% -20%;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(70px 1000px at 22% -15%, rgba(150, 220, 240, 0.05), transparent 55%),
+    radial-gradient(90px 1100px at 52% -20%, rgba(150, 220, 240, 0.04), transparent 55%),
+    radial-gradient(60px 900px at 76% -10%, rgba(150, 220, 240, 0.035), transparent 55%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1400' height='1400'><filter id='c' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='0.008 0.012' numOctaves='3' seed='11'/><feColorMatrix values='0 0 0 0 0.05  0 0 0 0 0.45  0 0 0 0 0.65  -9 0 0 0 2.5'/></filter><rect width='100%25' height='100%25' filter='url(%23c)'/></svg>");
+  background-size: auto, auto, auto, 1400px 1400px;
+  mix-blend-mode: screen;
+  opacity: 0.22;
+  animation: abyss-drift 110s ease-in-out infinite alternate;
+}
+
+/* ---- A few restrained bubbles and sparkles, never crowded ------------------------- */
+body.abyss::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 5px, transparent 55%, rgba(200, 246, 250, 0.22) 56%, transparent 62%),
+    radial-gradient(circle 7px, transparent 60%, rgba(150, 230, 240, 0.16) 61%, transparent 68%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.4) 0 1.2px, transparent 2px),
+    radial-gradient(circle, rgba(180, 240, 245, 0.3) 0 1px, transparent 1.8px);
+  background-size: 480px 560px, 620px 700px, 360px 420px, 520px 600px;
+  background-position: 80px 120px, 340px 300px, 60px 40px, 380px 160px;
+  opacity: 0.5;
+  animation: abyss-rise 95s linear infinite;
+}
+
+@keyframes abyss-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 1.5%, 0) scale(1.04); }
+}
+@keyframes abyss-rise {
+  from { background-position: 80px 120px, 340px 300px, 60px 40px, 380px 160px; }
+  to { background-position: 80px -240px, 340px -260px, 60px -560px, 380px -680px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.abyss::before, body.abyss::after { animation: none; }
+}
+
+/* ---- Text ------------------------------------------------------------------------- */
+.abyss .text-slate-900 { color: #f5fbfd; }
+.abyss .text-slate-800 { color: var(--a-ink); }
+.abyss .text-slate-700 { color: #d3ecf3; }
+.abyss .text-slate-600 { color: #a9cbd6; }
+.abyss .text-slate-500 { color: #8caebb; }
+.abyss .text-slate-400 { color: #71919e; }
+.abyss .text-slate-300 { color: #5c7883; }
+.abyss .hover\:text-slate-900:hover,
+.abyss .hover\:text-slate-800:hover,
+.abyss .hover\:text-slate-700:hover,
+.abyss .hover\:text-slate-600:hover { color: var(--a-aqua-bright); }
+.abyss h1, .abyss h2, .abyss h3 {
+  color: #f5fbfd;
+  text-shadow: 0 0 22px rgba(77, 225, 226, 0.22);
+}
+.abyss a { text-underline-offset: 3px; }
+.abyss main a:not([class*="bg-"]):not([class*="border"]) { color: var(--a-aqua-bright); }
+.abyss ::selection { background: rgba(77, 225, 226, 0.3); color: #fff; }
+
+/* ---- Top bar + logo mark + active nav link ----------------------------------------- */
+.abyss header.bg-white {
+  background: linear-gradient(180deg, rgba(4, 22, 34, 0.7), rgba(4, 22, 34, 0.4));
+  border-bottom: 1px solid rgba(114, 245, 240, 0.16);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 10px 34px rgba(2, 10, 18, 0.4);
+}
+.abyss header .font-semibold {
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 12px rgba(77, 225, 226, 0.45);
+}
+.abyss .brand-orb {
+  display: inline-block;
+  background: radial-gradient(circle at 32% 30%, #f2ffff, var(--a-aqua-bright) 45%, var(--a-deep) 100%);
+  box-shadow: 0 0 10px rgba(114, 245, 240, 0.65), inset 0 0 4px rgba(255, 255, 255, 0.55);
+}
+.abyss .nav-link[aria-current="page"] {
+  color: var(--a-aqua-bright);
+  text-shadow: 0 0 10px rgba(77, 225, 226, 0.55);
+  border-bottom: 2px solid rgba(114, 245, 240, 0.6);
+  padding-bottom: 2px;
+}
+
+/* ---- Panels: cards, table wrapper, side panel — frosted low-opacity glass ----------- */
+.abyss .rounded-lg.bg-white {
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(7, 59, 87, 0.26), rgba(3, 21, 37, 0.32));
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid var(--a-glass-rim);
+  box-shadow: 0 24px 70px rgba(2, 10, 18, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 36px rgba(77, 225, 226, 0.06);
+}
+.abyss .bg-white { background-color: rgba(6, 30, 45, 0.4); }
+.abyss .bg-slate-50 { background-color: rgba(77, 225, 226, 0.05); }
+.abyss .bg-slate-100 { background-color: rgba(200, 235, 240, 0.08); }
+.abyss .hover\:bg-slate-50:hover { background-color: rgba(77, 225, 226, 0.1); }
+.abyss .border-slate-100 { border-color: rgba(255, 255, 255, 0.06); }
+.abyss .border-slate-200 { border-color: rgba(255, 255, 255, 0.13); }
+.abyss .border-slate-300 { border-color: rgba(114, 245, 240, 0.3); }
+.abyss .border-transparent { border-color: transparent; }
+
+/* ---- Metric cards: large soft glass capsules with a corner glint on hover ------------ */
+.abyss .grid.grid-cols-3 > div {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(114, 245, 240, 0.3);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(3, 21, 37, 0.06) 100%),
+    linear-gradient(160deg, rgba(7, 59, 87, 0.4), rgba(3, 16, 27, 0.6));
+  box-shadow: 0 12px 30px rgba(2, 10, 18, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -10px 18px rgba(0, 0, 0, 0.22);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.abyss .grid.grid-cols-3 > div::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 28%, rgba(255, 255, 255, 0.10) 45%, transparent 64%);
+  pointer-events: none;
+}
+.abyss .grid.grid-cols-3 > div:hover {
+  border-color: rgba(114, 245, 240, 0.55);
+  box-shadow: 0 12px 34px rgba(77, 225, 226, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.34), inset 0 -10px 18px rgba(0, 0, 0, 0.18);
+}
+.abyss .grid.grid-cols-3 > div p:first-child { color: rgba(205, 240, 245, 0.6); letter-spacing: 0.1em; }
+.abyss .grid.grid-cols-3 > div p:last-child { color: #f5fbfd; text-shadow: 0 0 12px rgba(77, 225, 226, 0.4); }
+/* the last card (DRAFTED) is the highlighted one — the one place sparkle is used */
+.abyss .grid.grid-cols-3 > div:last-child {
+  border-color: rgba(114, 245, 240, 0.6);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(77, 225, 226, 0.24), transparent 65%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 40%, rgba(3, 21, 37, 0.06) 100%),
+    linear-gradient(160deg, rgba(7, 87, 121, 0.5), rgba(3, 20, 34, 0.66));
+  box-shadow: 0 0 30px rgba(77, 225, 226, 0.22), 0 12px 30px rgba(2, 10, 18, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+.abyss .grid.grid-cols-3 > div:last-child p:first-child::before {
+  content: "\2726  ";
+  color: var(--a-aqua-bright);
+  text-shadow: 0 0 8px var(--a-aqua-bright);
+}
+.abyss .grid.grid-cols-3 > div:last-child p:last-child {
+  color: #b9f3ea;
+  text-shadow: 0 0 16px rgba(127, 233, 201, 0.7);
+}
+
+/* ---- Table --------------------------------------------------------------------------- */
+.abyss table thead {
+  background: rgba(77, 225, 226, 0.04);
+  color: rgba(205, 240, 245, 0.55);
+  letter-spacing: 0.08em;
+}
+.abyss table tbody tr { transition: background-color 0.2s ease; }
+.abyss table tbody tr:hover { background-color: rgba(77, 225, 226, 0.045); }
+
+/* ---- Badges / pills, muted and restrained --------------------------------------------- */
+.abyss .rounded-full[class*="bg-"] {
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.abyss .bg-green-100, .abyss .bg-green-50 { background-color: rgba(127, 233, 201, 0.14); }
+.abyss .bg-green-100.rounded-full {
+  background: linear-gradient(180deg, rgba(127, 233, 201, 0.26), rgba(127, 233, 201, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(127, 233, 201, 0.45), 0 0 10px rgba(127, 233, 201, 0.2);
+}
+.abyss .text-green-800 { color: #b9f3ea; }
+.abyss .border-green-200, .abyss .border-green-300 { border-color: rgba(127, 233, 201, 0.4); }
+
+.abyss .bg-red-100, .abyss .bg-red-50 { background-color: rgba(255, 110, 110, 0.14); }
+.abyss .bg-red-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 110, 110, 0.26), rgba(255, 110, 110, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(255, 130, 130, 0.45), 0 0 10px rgba(255, 110, 110, 0.2);
+}
+.abyss .text-red-800, .abyss .text-red-700 { color: #ffb0ab; }
+.abyss .border-red-200, .abyss .border-red-300 { border-color: rgba(255, 130, 130, 0.4); }
+
+.abyss .bg-amber-100, .abyss .bg-amber-50 { background-color: rgba(180, 130, 60, 0.3); }
+.abyss .bg-amber-100.rounded-full {
+  background: linear-gradient(180deg, rgba(255, 176, 90, 0.28), rgba(180, 130, 60, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(255, 176, 90, 0.45), 0 0 10px rgba(255, 176, 90, 0.18);
+}
+.abyss .text-amber-800, .abyss .text-amber-900 { color: #ffcf8f; }
+.abyss .border-amber-200 { border-color: rgba(255, 176, 90, 0.45); }
+
+.abyss .bg-blue-100, .abyss .bg-blue-50 { background-color: rgba(77, 225, 226, 0.14); }
+.abyss .text-blue-800, .abyss .text-blue-900 { color: #9fe9ea; }
+.abyss .border-blue-200, .abyss .border-blue-300 { border-color: rgba(114, 245, 240, 0.45); }
+.abyss .border-blue-600 { border-color: var(--a-aqua-bright); }
+.abyss .bg-blue-600 { background-color: #1c9aa6; }
+.abyss .hover\:bg-blue-100:hover { background-color: rgba(77, 225, 226, 0.2); }
+
+.abyss .bg-indigo-100 { background-color: rgba(120, 150, 240, 0.18); }
+.abyss .text-indigo-800 { color: #c3cdff; }
+.abyss .bg-purple-100 { background-color: rgba(200, 130, 240, 0.16); }
+.abyss .text-purple-800 { color: #eab8ff; }
+
+/* ---- Buttons: frosted glass with a soft specular streak, never neon ------------------- */
+.abyss .bg-slate-900.text-white {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: linear-gradient(160deg, rgba(114, 245, 240, 0.85), rgba(7, 59, 87, 0.92));
+  color: #04222c;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 26px rgba(2, 10, 18, 0.4), 0 0 16px rgba(77, 225, 226, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: box-shadow 0.2s ease, filter 0.2s ease;
+}
+.abyss .bg-slate-900.text-white::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.35) 46%, transparent 60%);
+  pointer-events: none;
+}
+.abyss .bg-slate-900.text-white:hover:not(:disabled) {
+  box-shadow: 0 10px 30px rgba(2, 10, 18, 0.45), 0 0 24px rgba(77, 225, 226, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.abyss .bg-slate-900.text-white:disabled { box-shadow: none; filter: saturate(0.55); }
+
+/* secondary buttons: dark frosted glass with a thin aqua-white rim */
+.abyss button.border-slate-300,
+.abyss a.border-slate-300 {
+  border-radius: 9999px;
+  background: rgba(5, 26, 40, 0.5);
+  border-color: rgba(114, 245, 240, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+.abyss button.border-slate-300:hover:not(:disabled),
+.abyss a.border-slate-300:hover {
+  background: rgba(77, 225, 226, 0.12);
+  border-color: rgba(114, 245, 240, 0.7);
+  box-shadow: 0 0 12px rgba(77, 225, 226, 0.25), inset 0 0 10px rgba(77, 225, 226, 0.1);
+}
+.abyss button.border-blue-300 { border-radius: 9999px; }
+
+/* small action buttons in table rows (rounded-md text-xs) */
+.abyss td button.rounded-md, .abyss td a.rounded-md { border-radius: 16px; }
+
+/* reconnect (red) button */
+.abyss .bg-red-700 {
+  border-radius: 9999px;
+  background: linear-gradient(160deg, #ff8a80, #c1443b);
+  box-shadow: 0 0 12px rgba(255, 110, 110, 0.4);
+}
+.abyss .hover\:bg-red-800:hover { background: linear-gradient(160deg, #ffa199, #d5544a); }
+.abyss .hover\:bg-red-50:hover { background-color: rgba(255, 110, 110, 0.14); }
+
+/* ---- Alerts / callouts ----------------------------------------------------------------- */
+.abyss .rounded-md.border.px-4.py-3 {
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(2, 10, 18, 0.4);
+}
+.abyss .rounded-md.border.border-amber-200 {
+  background: rgba(55, 38, 22, 0.55);
+  border: 1px solid rgba(255, 176, 90, 0.45);
+  color: #ffdcaa;
+}
+.abyss .rounded-md.border.border-amber-200::before { content: "\26A0\FE0E  "; color: #ffcf8f; }
+
+/* ---- Forms ---------------------------------------------------------------------------- */
+.abyss input, .abyss textarea, .abyss select {
+  background-color: rgba(4, 24, 36, 0.55);
+  color: #eafcfd;
+  border-color: rgba(114, 245, 240, 0.3);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.abyss input::placeholder, .abyss textarea::placeholder { color: rgba(169, 203, 214, 0.5); }
+.abyss input:focus, .abyss textarea:focus, .abyss select:focus {
+  outline: none;
+  border-color: var(--a-aqua-bright);
+  box-shadow: 0 0 0 3px rgba(77, 225, 226, 0.18), 0 0 14px rgba(77, 225, 226, 0.2);
+}
+.abyss select option { background: #051d2b; color: #eafcfd; }
+.abyss input[type="checkbox"], .abyss input[type="radio"] { accent-color: var(--a-aqua-bright); }
+
+/* ---- Email popup + lead details dialog: denser glass so text always reads clearly --------- */
+.abyss [data-email-popover] {
+  background: linear-gradient(160deg, rgba(8, 42, 60, 0.94), rgba(3, 18, 28, 0.96));
+  border: 1px solid rgba(114, 245, 240, 0.35);
+  border-radius: 18px;
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 28px rgba(77, 225, 226, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.abyss [role="dialog"][aria-labelledby="lead-details-title"] {
+  background: linear-gradient(160deg, rgba(9, 46, 66, 0.95), rgba(3, 18, 28, 0.97));
+  border: 1px solid rgba(114, 245, 240, 0.3);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.6), 0 0 36px rgba(77, 225, 226, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.abyss [role="dialog"] li.rounded-md.border { background: rgba(77, 225, 226, 0.035); }
+
+/* square selectors in the popup: the address rows and their tick boxes */
+.abyss [data-email-popover] button,
+.abyss [data-email-popover] button > span:first-child { border-radius: 0; }
+.abyss .shadow-lg { box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 28px rgba(77, 225, 226, 0.14); }
+
+/* ---- Misc ---------------------------------------------------------------------------------- */
+.abyss hr, .abyss .border-t, .abyss .border-b { border-color: rgba(255, 255, 255, 0.08); }
+.abyss code { color: var(--a-aqua-bright); }
+.abyss footer { color: #5c7883; }
+.abyss ::-webkit-scrollbar { width: 10px; height: 10px; }
+.abyss ::-webkit-scrollbar-thumb { background: rgba(114, 245, 240, 0.24); border-radius: 8px; }
+.abyss ::-webkit-scrollbar-track { background: rgba(3, 18, 28, 0.3); }
